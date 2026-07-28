@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, AccountType, AccountStatus } from '@prisma/client';
+import { PrismaClient, UserRole, AccountType, AccountStatus, TransactionType, TransactionStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -28,6 +28,7 @@ async function main() {
     { nationalId: '200012345678', fullName: 'Kamal Perera' },
     { nationalId: '199887654321', fullName: 'Nimali Fernando' },
     { nationalId: '198512341234', fullName: 'Ruwan Silva' },
+    { nationalId: '199512345678', fullName: 'Alex Mercer' },
   ];
 
   for (const identity of backupIdentities) {
@@ -37,7 +38,7 @@ async function main() {
   }
   console.log(`✅ Seeded ${backupIdentities.length} backup identity records.`);
 
-  // 3. Password Hashes (bcrypt cost factor 12)
+  // 3. Password Hashes
   const defaultPasswordHash = await bcrypt.hash('VaultGuard@2065', 12);
   const operatorPasswordHash = await bcrypt.hash('Operator@2065', 12);
 
@@ -73,22 +74,14 @@ async function main() {
             dailyLimit: 1000000.00,
             singleLimit: 500000.00,
           },
-          {
-            accountNumber: 'VG-FD-001236',
-            type: AccountType.FIXED_DEPOSIT,
-            balance: 500000.00,
-            currency: 'LKR',
-            status: AccountStatus.ACTIVE,
-            dailyLimit: 0.00,
-            singleLimit: 0.00,
-          },
         ],
       },
     },
+    include: { accounts: true },
   });
 
   // Support Operator: Support Admin
-  const operatorUser = await prisma.user.create({
+  await prisma.user.create({
     data: {
       email: 'operator@vaultguard.com',
       passwordHash: operatorPasswordHash,
@@ -120,18 +113,76 @@ async function main() {
         ],
       },
     },
+    include: { accounts: true },
   });
 
-  console.log(`✅ Seeded 3 users (1 Customer w/ MFA, 1 Operator, 1 Customer target).`);
-
-  // 5. Seed Payees for Demo User
-  console.log('💳 Seeding Payees...');
+  // 5. Seed Payees & Billers
+  console.log('💳 Seeding Payees & Billers...');
   await prisma.payee.create({
     data: {
       userId: demoUser.id,
       name: 'Nimali Fernando',
       accountNumber: 'VG-SAV-009876',
       bankCode: 'VG-BANK',
+      type: 'PERSON',
+    },
+  });
+
+  await prisma.payee.create({
+    data: {
+      userId: demoUser.id,
+      name: 'City Power & Electric (CEB)',
+      accountNumber: 'UTIL-CEB-001',
+      type: 'BILLER',
+    },
+  });
+
+  // 6. Active Loan with Schedule
+  console.log('🏦 Seeding Loans & Repayment Schedules...');
+  const savingsAccount = demoUser.accounts[0];
+
+  const loan = await prisma.loan.create({
+    data: {
+      userId: demoUser.id,
+      accountId: savingsAccount.id,
+      principalAmount: 250000.00,
+      outstandingBalance: 185000.00,
+      interestRate: 6.50,
+      termMonths: 36,
+      nextDueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      status: 'ACTIVE',
+    },
+  });
+
+  await prisma.repaymentSchedule.createMany({
+    data: [
+      {
+        loanId: loan.id,
+        dueDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        amount: 7500.00,
+        status: 'PAID',
+        paidAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      },
+      {
+        loanId: loan.id,
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        amount: 7500.00,
+        status: 'UPCOMING',
+      },
+    ],
+  });
+
+  // 7. Transactions
+  await prisma.transaction.create({
+    data: {
+      requestId: 'req_seed_init_01',
+      fromAccountId: savingsAccount.id,
+      toAccountId: payeeUser.accounts[0].id,
+      amount: 15000.00,
+      currency: 'LKR',
+      type: TransactionType.TRANSFER,
+      status: TransactionStatus.COMPLETED,
+      description: 'Transfer to Nimali Fernando',
     },
   });
 
