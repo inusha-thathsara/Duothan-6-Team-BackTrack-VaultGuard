@@ -1676,18 +1676,18 @@ Local Pub/Sub mock        →      Google Cloud Pub/Sub       →    Pub/Sub wit
 - [ ] `POST /api/auth/mfa/setup` — generates TOTP secret
 - [ ] `POST /api/auth/mfa/verify` — verifies 6-digit code
 - [ ] Login flow integrates MFA
-- [ ] `GET /api/accounts` — lists user accounts
-- [ ] `GET /api/accounts/[id]/statements` — filtered statements
+- [x] `GET /accounts` — lists user accounts
+- [x] `GET /accounts/:id/statements` — filtered statements
 - [ ] Unit tests for MFA module
 
 #### Day 4 (Advanced Auth + Accounts Complete) ✅
 - [ ] Device trust — fingerprint, check, CRUD
 - [ ] Step-up MFA middleware working
 - [ ] RBAC — withRole() guards admin routes
-- [ ] Degraded mode — health flag check
+- [x] Degraded mode — health flag check
 - [ ] Auth events emitted to EventBus
 - [ ] All auth unit tests pass
-- [ ] All accounts unit tests pass
+- [x] All accounts unit tests pass
 
 #### Day 5-6 (Integration) ✅
 - [ ] End-to-end: register → login → MFA → dashboard → accounts

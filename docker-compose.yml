@@ -7,6 +7,7 @@ services:
       - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - auth-service
+      - accounts-service
 
   auth-service:
     build:
@@ -22,9 +23,30 @@ services:
       - JWT_ACCESS_EXPIRY=15m
       - JWT_REFRESH_EXPIRY=7d
       - BCRYPT_ROUNDS=12
+      - ACCOUNTS_SERVICE_URL=http://accounts-service:4002
+      - INTERNAL_SERVICE_SECRET=vaultguard-internal-secret-key-2026
       - NODE_ENV=production
     depends_on:
       auth-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  accounts-service:
+    build:
+      context: ./services/accounts-service
+      dockerfile: Dockerfile
+    ports:
+      - "4002:4002"
+    environment:
+      - PORT=4002
+      - DATABASE_URL=postgresql://vaultguard:vaultguard@accounts-db:5432/accounts_db?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=vaultguard-super-secret-jwt-key-2026-phase-2-mvp
+      - INTERNAL_SERVICE_SECRET=vaultguard-internal-secret-key-2026
+      - NODE_ENV=production
+    depends_on:
+      accounts-db:
         condition: service_healthy
       redis:
         condition: service_healthy

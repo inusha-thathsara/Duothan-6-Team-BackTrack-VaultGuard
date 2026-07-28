@@ -1,0 +1,83 @@
+// ============================================================
+// VaultGuard — Accounts Service Prisma Schema (Isolated Database)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Accounts Domain Enums & Models ──────────────────────────
+
+enum AccountType {
+  SAVINGS
+  CHECKING
+  FIXED_DEPOSIT
+}
+
+enum AccountStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+model Account {
+  id            String        @id @default(uuid())
+  userId        String        @map("user_id")
+  accountNumber String        @unique @map("account_number")
+  type          AccountType   @default(SAVINGS)
+  balance       Decimal       @default(0) @db.Decimal(15, 2)
+  currency      String        @default("LKR")
+  status        AccountStatus @default(ACTIVE)
+  dailyLimit    Decimal       @default(500000.00) @db.Decimal(15, 2) @map("daily_limit")
+  singleLimit   Decimal       @default(250000.00) @db.Decimal(15, 2) @map("single_limit")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  outgoingTransactions Transaction[] @relation("FromAccount")
+  incomingTransactions Transaction[] @relation("ToAccount")
+
+  @@index([userId])
+  @@index([accountNumber])
+  @@map("accounts")
+}
+
+enum TransactionType {
+  TRANSFER
+  BILL_PAY
+  LOAN_REPAYMENT
+  DEPOSIT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Transaction {
+  id            String            @id @default(uuid())
+  requestId     String            @unique @map("request_id")
+  fromAccountId String            @map("from_account_id")
+  toAccountId   String?           @map("to_account_id")
+  amount        Decimal           @db.Decimal(15, 2)
+  currency      String            @default("LKR")
+  type          TransactionType
+  status        TransactionStatus @default(COMPLETED)
+  description   String?
+  reference     String?
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  fromAccount Account  @relation("FromAccount", fields: [fromAccountId], references: [id])
+  toAccount   Account? @relation("ToAccount", fields: [toAccountId], references: [id])
+
+  @@index([fromAccountId])
+  @@index([toAccountId])
+  @@index([createdAt])
+  @@map("transactions")
+}
