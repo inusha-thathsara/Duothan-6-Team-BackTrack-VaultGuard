@@ -1,16 +1,18 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, UserRole, AccountType, AccountStatus, TransactionType, TransactionStatus } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Seeding VaultGuard database...");
+  console.log('🌱 Starting database seeding...');
 
-  // Clean existing data
+  // 1. Clean existing records in reverse dependency order
+  console.log('🧹 Cleaning existing data...');
   await prisma.deadLetterEntry.deleteMany();
   await prisma.auditEvent.deleteMany();
-  await prisma.outboxEvent.deleteMany();
   await prisma.repaymentSchedule.deleteMany();
   await prisma.loan.deleteMany();
+  await prisma.outboxEvent.deleteMany();
   await prisma.transaction.deleteMany();
   await prisma.payee.deleteMany();
   await prisma.account.deleteMany();
@@ -18,96 +20,137 @@ async function main() {
   await prisma.trustedDevice.deleteMany();
   await prisma.mfaFactor.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.backupIdentity.deleteMany();
 
-  // 1. Demo Customer
-  const customer = await prisma.user.create({
+  // 2. Seed Surviving Backup Identities (§2.4 & §5.2)
+  console.log('📋 Seeding Backup Identities...');
+  const backupIdentities = [
+    { nationalId: '200012345678', fullName: 'Kamal Perera' },
+    { nationalId: '199887654321', fullName: 'Nimali Fernando' },
+    { nationalId: '198512341234', fullName: 'Ruwan Silva' },
+    { nationalId: '199512345678', fullName: 'Alex Mercer' },
+  ];
+
+  for (const identity of backupIdentities) {
+    await prisma.backupIdentity.create({
+      data: identity,
+    });
+  }
+  console.log(`✅ Seeded ${backupIdentities.length} backup identity records.`);
+
+  // 3. Password Hashes
+  const defaultPasswordHash = await bcrypt.hash('VaultGuard@2065', 12);
+  const operatorPasswordHash = await bcrypt.hash('Operator@2065', 12);
+
+  // 4. Seed Demo Users & Accounts
+  console.log('👤 Seeding Demo Users and Accounts...');
+
+  // Demo Customer 1: Kamal Perera (Main Demo Account)
+  const demoUser = await prisma.user.create({
     data: {
-      id: "usr_customer_01",
-      email: "demo@vaultguard.com",
-      passwordHash: "$2b$12$KIXeJ3OQ8e...stubHash", // bcrypt hash placeholder
-      nationalId: "199512345678",
-      fullName: "Alex Mercer",
-      role: "CUSTOMER",
+      email: 'demo@vaultguard.com',
+      passwordHash: defaultPasswordHash,
+      nationalId: '200012345678',
+      fullName: 'Kamal Perera',
+      role: UserRole.CUSTOMER,
       mfaEnabled: true,
+      accounts: {
+        create: [
+          {
+            accountNumber: 'VG-SAV-001234',
+            type: AccountType.SAVINGS,
+            balance: 250000.00,
+            currency: 'LKR',
+            status: AccountStatus.ACTIVE,
+            dailyLimit: 500000.00,
+            singleLimit: 250000.00,
+          },
+          {
+            accountNumber: 'VG-CHK-001235',
+            type: AccountType.CHECKING,
+            balance: 75000.50,
+            currency: 'LKR',
+            status: AccountStatus.ACTIVE,
+            dailyLimit: 1000000.00,
+            singleLimit: 500000.00,
+          },
+        ],
+      },
     },
+    include: { accounts: true },
   });
 
-  // 2. Demo Support Operator
+  // Support Operator: Support Admin
   await prisma.user.create({
     data: {
-      id: "usr_operator_01",
-      email: "operator@vaultguard.com",
-      passwordHash: "$2b$12$KIXeJ3OQ8e...stubHash",
-      nationalId: "198887654321",
-      fullName: "Sarah Connor",
-      role: "SUPPORT_OPERATOR",
+      email: 'operator@vaultguard.com',
+      passwordHash: operatorPasswordHash,
+      nationalId: '199556781234',
+      fullName: 'Support Admin',
+      role: UserRole.SUPPORT_OPERATOR,
       mfaEnabled: false,
     },
   });
 
-  // 3. Accounts for Customer
-  const savingsAccount = await prisma.account.create({
+  // Demo Customer 2: Nimali Fernando (Payee target)
+  const payeeUser = await prisma.user.create({
     data: {
-      id: "acc_savings_01",
-      userId: customer.id,
-      accountNumber: "VG-100200300",
-      type: "SAVINGS",
-      balance: 15450.75,
-      currency: "USD",
-      status: "ACTIVE",
-      dailyLimit: 10000,
-      singleLimit: 5000,
+      email: 'nimali@vaultguard.com',
+      passwordHash: defaultPasswordHash,
+      nationalId: '199887654321',
+      fullName: 'Nimali Fernando',
+      role: UserRole.CUSTOMER,
+      mfaEnabled: false,
+      accounts: {
+        create: [
+          {
+            accountNumber: 'VG-SAV-009876',
+            type: AccountType.SAVINGS,
+            balance: 150000.00,
+            currency: 'LKR',
+            status: AccountStatus.ACTIVE,
+          },
+        ],
+      },
+    },
+    include: { accounts: true },
+  });
+
+  // 5. Seed Payees & Billers
+  console.log('💳 Seeding Payees & Billers...');
+  await prisma.payee.create({
+    data: {
+      userId: demoUser.id,
+      name: 'Nimali Fernando',
+      accountNumber: 'VG-SAV-009876',
+      bankCode: 'VG-BANK',
+      type: 'PERSON',
     },
   });
 
-  const checkingAccount = await prisma.account.create({
+  await prisma.payee.create({
     data: {
-      id: "acc_checking_01",
-      userId: customer.id,
-      accountNumber: "VG-100200301",
-      type: "CHECKING",
-      balance: 3200.00,
-      currency: "USD",
-      status: "ACTIVE",
-      dailyLimit: 5000,
-      singleLimit: 2500,
+      userId: demoUser.id,
+      name: 'City Power & Electric (CEB)',
+      accountNumber: 'UTIL-CEB-001',
+      type: 'BILLER',
     },
   });
 
-  // 4. Payees & Billers
-  const payeePerson = await prisma.payee.create({
-    data: {
-      id: "payee_john_01",
-      userId: customer.id,
-      name: "John Doe",
-      accountNumber: "VG-999888777",
-      bankCode: "VGUS",
-      type: "PERSON",
-    },
-  });
+  // 6. Active Loan with Schedule
+  console.log('🏦 Seeding Loans & Repayment Schedules...');
+  const savingsAccount = demoUser.accounts[0];
 
-  const billerCEB = await prisma.payee.create({
-    data: {
-      id: "biller_utility_01",
-      userId: customer.id,
-      name: "City Power & Electric",
-      accountNumber: "UTIL-554433",
-      type: "BILLER",
-    },
-  });
-
-  // 5. Active Loan with Schedule
   const loan = await prisma.loan.create({
     data: {
-      id: "loan_home_01",
-      userId: customer.id,
+      userId: demoUser.id,
       accountId: savingsAccount.id,
-      principalAmount: 25000.00,
-      outstandingBalance: 18500.00,
+      principalAmount: 250000.00,
+      outstandingBalance: 185000.00,
       interestRate: 6.50,
       termMonths: 36,
-      nextDueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
-      status: "ACTIVE",
+      nextDueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      status: 'ACTIVE',
     },
   });
 
@@ -116,53 +159,39 @@ async function main() {
       {
         loanId: loan.id,
         dueDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        amount: 750.00,
-        status: "PAID",
+        amount: 7500.00,
+        status: 'PAID',
         paidAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       },
       {
         loanId: loan.id,
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        amount: 750.00,
-        status: "UPCOMING",
-      },
-      {
-        loanId: loan.id,
-        dueDate: new Date(Date.now() + 44 * 24 * 60 * 60 * 1000),
-        amount: 750.00,
-        status: "UPCOMING",
+        amount: 7500.00,
+        status: 'UPCOMING',
       },
     ],
   });
 
-  // 6. Sample Initial Transactions
+  // 7. Transactions
   await prisma.transaction.create({
     data: {
-      id: "tx_init_01",
-      requestId: "req_init_sample_01",
+      requestId: 'req_seed_init_01',
       fromAccountId: savingsAccount.id,
-      toAccountId: checkingAccount.id,
-      amount: 500.00,
-      currency: "USD",
-      type: "TRANSFER",
-      status: "COMPLETED",
-      sagaStatus: "COMPLETED",
-      description: "Monthly savings transfer",
+      toAccountId: payeeUser.accounts[0].id,
+      amount: 15000.00,
+      currency: 'LKR',
+      type: TransactionType.TRANSFER,
+      status: TransactionStatus.COMPLETED,
+      description: 'Transfer to Nimali Fernando',
     },
   });
 
-  console.log("✅ Seed completed successfully!");
-  console.log(`   Customer ID: ${customer.id}`);
-  console.log(`   Savings Acc: ${savingsAccount.id} (VG-100200300, Balance: $15,450.75)`);
-  console.log(`   Checking Acc: ${checkingAccount.id} (VG-100200301, Balance: $3,200.00)`);
-  console.log(`   Payee ID: ${payeePerson.id}`);
-  console.log(`   Biller ID: ${billerCEB.id}`);
-  console.log(`   Loan ID: ${loan.id}`);
+  console.log('🎉 Seeding completed successfully!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('❌ Error during seeding:', e);
     process.exit(1);
   })
   .finally(async () => {

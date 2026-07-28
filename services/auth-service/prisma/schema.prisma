@@ -1,0 +1,86 @@
+// ============================================================
+// VaultGuard — Auth Service Prisma Schema (Isolated Database)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth Domain Enums & Models ────────────────────────────
+
+enum UserRole {
+  CUSTOMER
+  SUPPORT_OPERATOR
+}
+
+model BackupIdentity {
+  id         String   @id @default(uuid())
+  nationalId String   @unique @map("national_id")
+  fullName   String   @map("full_name")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("backup_identities")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  nationalId   String?  @unique @map("national_id")
+  fullName     String   @map("full_name")
+  role         UserRole @default(CUSTOMER)
+  mfaEnabled   Boolean  @default(false) @map("mfa_enabled")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  mfaFactors     MfaFactor[]
+  trustedDevices TrustedDevice[]
+  refreshTokens  RefreshToken[]
+
+  @@map("users")
+}
+
+model MfaFactor {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  secret      String
+  backupCodes String[]  @map("backup_codes")
+  verifiedAt  DateTime? @map("verified_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mfa_factors")
+}
+
+model TrustedDevice {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  fingerprint String
+  userAgent   String   @map("user_agent")
+  ipHash      String   @map("ip_hash")
+  label       String?
+  trustedAt   DateTime @default(now()) @map("trusted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("trusted_devices")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
