@@ -45,8 +45,8 @@ This document defines the **end-to-end development plan** for VaultGuard's **Aut
 | RBAC (Customer / Support Operator) | Frontend UI pages (Member 1) |
 | Account listing, balance, statements | Cloud deployment (Phase 3) |
 | Degraded mode for Payments dependency | Rate limiting middleware (Member 4) |
-| Prisma schema for ALL domains | Docker/CI pipeline (Member 4) |
-| Seed data for ALL domains | — |
+| Prisma schema for Auth & Accounts domains | Docker/CI pipeline (Member 4) |
+| Seed data for Auth & Accounts domains | — |
 
 ### Design Principles
 
@@ -61,164 +61,248 @@ This document defines the **end-to-end development plan** for VaultGuard's **Aut
 
 ## 2. Recommended Architecture
 
-### 2.1 Microservices-Ready Modular Monolith (MVP Strategy)
+### 2.1 True Microservices Architecture
 
-For the MVP (Phase 2), we implement a **modular monolith** inside Next.js that mirrors exact microservice boundaries from Phase 1. Each domain service lives in its own directory with clear import boundaries — making the Phase 3 extraction to independent Cloud Run containers a mechanical refactor.
+VaultGuard is built as **independent NestJS microservices** deployed on Cloud Run, each owning its own database, aligned 1:1 with the Phase 1 RECON blueprint (§3.2). The Next.js frontend is a separate deployment that communicates with services through an API Gateway.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                       Next.js Application                       │
-│                                                                 │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────────┐  │
-│  │   API Routes     │  │   API Routes     │  │  API Routes    │  │
-│  │  /api/auth/*     │  │  /api/accounts/* │  │  (other svc)   │  │
-│  └────────┬─────────┘  └────────┬─────────┘  └───────┬────────┘  │
-│           │                     │                     │          │
-│  ┌────────▼─────────┐  ┌───────▼──────────┐          │          │
-│  │  Auth Service     │  │ Accounts Service │          │          │
-│  │  (src/lib/        │  │ (src/lib/         │          │          │
-│  │   services/auth/) │  │  services/        │          │          │
-│  │                   │  │  accounts/)       │          │          │
-│  │  • jwt.ts         │  │  • account.       │          │          │
-│  │  • password.ts    │  │    service.ts     │          │          │
-│  │  • mfa.ts         │  │  • degraded.ts    │          │          │
-│  │  • device-trust.ts│  │                   │          │          │
-│  │  • rbac.ts        │  │                   │          │          │
-│  └────────┬─────────┘  └───────┬──────────┘          │          │
-│           │                     │                     │          │
-│  ┌────────▼─────────────────────▼─────────────────────▼────────┐ │
-│  │                  Shared Infrastructure                       │ │
-│  │  • Prisma Client (src/lib/db/prisma.ts)                     │ │
-│  │  • Middleware (src/lib/middleware/with-auth.ts, with-role.ts)│ │
-│  │  • Validation (src/lib/validation/auth.schema.ts)           │ │
-│  │  • Logger (src/lib/utils/logger.ts)                         │ │
-│  │  • Event Bus (src/lib/events/event-bus.ts)                  │ │
-│  └─────────────────────────────┬───────────────────────────────┘ │
-│                                │                                 │
-└────────────────────────────────┼─────────────────────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   PostgreSQL Database    │
-                    │   (Docker Container)     │
-                    │                          │
-                    │  Auth Domain Tables      │
-                    │  Accounts Domain Tables  │
-                    │  Payments Domain Tables  │
-                    │  Loans Domain Tables     │
-                    │  Audit Domain Tables     │
-                    └─────────────────────────┘
+                            ┌──────────────────┐
+                            │   Cloud Armor     │
+                            │   (WAF / DDoS)    │
+                            └────────┬─────────┘
+                                     │
+                            ┌────────▼─────────┐
+                            │  Cloud Load       │
+                            │  Balancer + CDN   │
+                            └────────┬─────────┘
+                                     │
+                   ┌─────────────────┼─────────────────┐
+                   │                 │                   │
+          ┌────────▼──────┐ ┌───────▼────────┐ ┌───────▼────────┐
+          │  Next.js       │ │  API Gateway    │ │  Static Assets │
+          │  Frontend      │ │  (routing,      │ │  (Cloud CDN)   │
+          │  (Cloud Run)   │ │   rate-limit,   │ │                │
+          │                │ │   auth check)   │ │                │
+          └────────────────┘ └───────┬────────┘ └────────────────┘
+                                     │
+            ┌────────────┬───────────┼───────────┬────────────┐
+            │            │           │           │            │
+   ┌────────▼──┐ ┌──────▼────┐ ┌───▼──────┐ ┌──▼───────┐ ┌──▼──────────┐
+   │  Auth     │ │ Accounts  │ │ Payments │ │ Loans    │ │ Notification│
+   │  Service  │ │ Service   │ │ Service  │ │ Service  │ │ Service     │
+   │ (NestJS)  │ │ (NestJS)  │ │ (NestJS) │ │ (NestJS) │ │ (NestJS)    │
+   │ :4001     │ │ :4002     │ │ :4003    │ │ :4004    │ │ :4005       │
+   └─────┬─────┘ └─────┬─────┘ └────┬─────┘ └────┬─────┘ └──────┬──────┘
+         │              │            │             │              │
+   ┌─────▼─────┐ ┌─────▼─────┐ ┌───▼───────┐ ┌───▼──────┐       │
+   │ auth_db   │ │accounts_db│ │payments_db│ │ loans_db │       │
+   │(Cloud SQL)│ │(Cloud SQL)│ │(Cloud SQL)│ │(Cloud SQL│       │
+   └───────────┘ └───────────┘ └───────────┘ └──────────┘       │
+                                                                 │
+   ┌─────────────────────────────────────────────────────────────┘
+   │
+   │  ┌──────────────┐      ┌──────────────┐     ┌──────────────┐
+   └─►│   Pub/Sub     │─────►│ Audit Service│────►│  BigQuery    │
+      │  (Events)     │      │  (NestJS)    │     │ (Immutable   │
+      │               │      │  :4006       │     │  Audit Log)  │
+      └──────────────┘      └──────┬───────┘     └──────────────┘
+                                    │
+                             ┌──────▼───────┐
+                             │  audit_db    │
+                             │ (Cloud SQL)  │
+                             └──────────────┘
+
+   Shared Infrastructure:
+   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+   │ Memorystore  │  │ Secret Mgr   │  │ Cloud KMS    │
+   │ (Redis)      │  │ + IAM        │  │ (HSM keys)   │
+   └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
 ### 2.2 Why This Architecture
 
 | Decision | Rationale |
 |:---|:---|
-| **Modular monolith, not separate services** | For a 7-day sprint with 4 members, separate deployments add complexity without value. Domain boundaries in code achieve the same isolation. |
-| **Next.js API Routes as gateway** | One deployment, one port, one Docker container. The API route layer acts as the gateway (auth guard, rate limiting, routing). |
-| **Service modules = future microservices** | `src/lib/services/auth/` maps 1:1 to a future Cloud Run Auth Service. Zero business logic in route handlers. |
-| **Single PostgreSQL, domain-prefixed tables** | Physical DB isolation in Phase 3; logical isolation now via Prisma model naming and no cross-domain joins. |
-| **Prisma ORM** | Type-safe queries, migration management, seed scripts. Matches Next.js + TypeScript ecosystem. |
+| **Independent NestJS microservices** | Each service is independently deployable, scalable, and failable — no single binary can take down the whole bank (Phase 1 §3.1). NestJS module system maps naturally to domain boundaries. |
+| **Per-domain Cloud SQL databases** | Data isolation from day 1. Compromise of one service's DB doesn't expose other domains. Matches Phase 1 RECON §3.2 requirement. |
+| **API Gateway as single entry point** | Centralized authentication, rate-limiting, and routing. Services never exposed directly to the internet. |
+| **Pub/Sub for cross-service events** | Decouples services. Notification/Audit failure cannot deadlock payment commits. Each service publishes domain events without knowing consumers. |
+| **NestJS (not Express)** | Built-in dependency injection, guards, interceptors, and module system. Enterprise patterns out of the box. TypeScript-first. |
+| **Prisma ORM per service** | Type-safe queries, migration management per domain. Each service owns its own `schema.prisma`. |
+| **Monorepo structure** | For a 7-day sprint with 4 members, one repo avoids cross-repo dependency overhead while maintaining service isolation via directory boundaries. |
 
 ### 2.3 Service Communication Patterns
 
 ```
-┌──────────────┐     Internal Function Call     ┌──────────────────┐
-│ Auth Service │ ─────────────────────────────► │ Accounts Service  │
-│              │  (e.g., create initial account │                    │
-│              │   during registration)         │                    │
-└──────┬───────┘                                └──────────────────┘
+┌──────────────┐     HTTP (internal)          ┌──────────────────┐
+│ Auth Service │ ────────────────────────────► │ Accounts Service  │
+│              │  POST /internal/accounts      │                    │
+│              │  (create accounts during      │                    │
+│              │   registration)               │                    │
+└──────┬───────┘                               └──────────────────┘
        │
-       │  Emits Events
+       │  Publishes Events
        ▼
-┌──────────────┐     EventBus (In-Process)      ┌──────────────────┐
-│  Event Bus   │ ─────────────────────────────► │  Audit Consumer   │
-│              │  auth.login                    │  (Member 4)       │
-│              │  auth.register                 │                    │
-│              │  auth.mfa_change               ├──────────────────┤
-│              │  auth.device_new               │  Notification     │
-│              │  auth.logout                   │  Consumer (M4)    │
-└──────────────┘                                └──────────────────┘
+┌──────────────┐     Pub/Sub (async)           ┌──────────────────┐
+│  Pub/Sub     │ ────────────────────────────► │  Audit Service    │
+│              │  auth.login                   │  (Member 4)       │
+│              │  auth.register                │                    │
+│              │  auth.mfa_change              ├──────────────────┤
+│              │  auth.device_new              │  Notification     │
+│              │  auth.logout                  │  Service (M4)     │
+└──────────────┘                               └──────────────────┘
 ```
 
-**Rule:** Auth Service calls Accounts Service **directly** (in-process function call) only during registration (to create initial accounts). For all other cross-domain communication, **events** are emitted to the EventBus. This preserves loose coupling for Phase 3 extraction.
+**Communication Rules:**
+1. **Synchronous (HTTP)**: Auth → Accounts only during registration. Internal endpoints are authenticated via service-to-service tokens (not user JWTs).
+2. **Asynchronous (Pub/Sub)**: All other cross-domain communication. Each service publishes domain events; consumers subscribe independently.
+3. **No shared database access**: Services never query another service's database. Data is fetched via HTTP or events.
+4. **Local dev**: In `docker-compose`, Nginx routes `/api/auth/*` → auth-service:4001, `/api/accounts/*` → accounts-service:4002, etc.
 
 ---
 
 ## 3. Module Breakdown
 
-### 3.1 Auth Service Modules
+### 3.1 Auth Service (NestJS — `services/auth-service/`)
 
 ```
-src/lib/services/auth/
-├── jwt.ts              # Token creation, verification, refresh rotation
-├── password.ts         # bcrypt hash & compare utilities
-├── mfa.ts              # TOTP secret generation, QR URI, verification
-├── device-trust.ts     # Device fingerprinting, trust check, management
-└── rbac.ts             # Role definitions, permission checks
+services/auth-service/
+├── src/
+│   ├── auth/                       # Auth module (NestJS)
+│   │   ├── auth.module.ts          # Module declaration
+│   │   ├── auth.controller.ts      # REST endpoints (register, login, refresh, logout)
+│   │   ├── auth.service.ts         # Core auth business logic
+│   │   ├── jwt.service.ts          # JWT sign/verify, refresh token rotation
+│   │   ├── password.service.ts     # bcrypt hash & compare
+│   │   ├── mfa.service.ts          # TOTP generation, verification, backup codes
+│   │   ├── device-trust.service.ts # Device fingerprinting, trust management
+│   │   ├── guards/
+│   │   │   ├── jwt-auth.guard.ts   # JWT Bearer token verification guard
+│   │   │   └── roles.guard.ts      # RBAC role-based access guard
+│   │   ├── decorators/
+│   │   │   ├── current-user.decorator.ts  # Extract user from request
+│   │   │   └── roles.decorator.ts         # @Roles() metadata decorator
+│   │   ├── dto/
+│   │   │   ├── register.dto.ts     # Registration validation (class-validator)
+│   │   │   ├── login.dto.ts        # Login validation
+│   │   │   └── mfa-verify.dto.ts   # MFA code validation
+│   │   └── interfaces/
+│   │       └── jwt-payload.interface.ts
+│   ├── prisma/
+│   │   └── prisma.service.ts       # Prisma client lifecycle (NestJS injectable)
+│   ├── app.module.ts               # Root module
+│   └── main.ts                     # Bootstrap (port 4001)
+├── prisma/
+│   ├── schema.prisma               # Auth domain models ONLY
+│   ├── seed.ts                     # Auth demo data
+│   └── migrations/
+├── test/
+│   ├── auth.service.spec.ts
+│   └── auth.controller.e2e-spec.ts
+├── package.json
+├── tsconfig.json
+├── nest-cli.json
+├── Dockerfile
+├── .env
+└── .env.example
 ```
 
-| Module | Responsibility | Key Exports |
+| Module | Responsibility | Key Methods |
 |:---|:---|:---|
-| **jwt.ts** | Sign/verify JWT access tokens (15min TTL), manage refresh tokens (7d, DB-backed, httpOnly cookie rotation) | `signAccessToken()`, `signRefreshToken()`, `verifyAccessToken()`, `rotateRefreshToken()`, `revokeRefreshToken()` |
-| **password.ts** | Hash passwords with bcrypt (cost factor 12), timing-safe comparison | `hashPassword()`, `verifyPassword()` |
-| **mfa.ts** | Generate TOTP secrets (RFC 6238), produce `otpauth://` URIs for QR code rendering, verify 6-digit tokens with time-window tolerance, generate/validate backup codes | `generateSecret()`, `generateQrUri()`, `verifyToken()`, `generateBackupCodes()`, `verifyBackupCode()` |
-| **device-trust.ts** | Create fingerprints from user-agent + IP hash, check if device is trusted, CRUD for trusted devices, determine if step-up MFA is required | `createFingerprint()`, `isTrustedDevice()`, `registerDevice()`, `revokeDevice()`, `listDevices()` |
-| **rbac.ts** | Define role hierarchy (CUSTOMER, SUPPORT_OPERATOR), check permissions for resource access | `Role` enum, `hasRole()`, `canAccess()` |
+| **auth.controller.ts** | REST endpoints: `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/mfa/setup`, `/auth/mfa/verify`, `GET/DELETE /auth/devices` | Route handlers (thin — delegate to services) |
+| **auth.service.ts** | Orchestrates registration (backup identity check + user creation), login (password verify + MFA check), token issuance | `register()`, `login()`, `logout()` |
+| **jwt.service.ts** | Sign/verify JWT access tokens (15min TTL, HS256), manage refresh tokens (7d, DB-backed, httpOnly cookie rotation) | `signAccessToken()`, `verifyAccessToken()`, `createRefreshToken()`, `rotateRefreshToken()`, `revokeRefreshToken()` |
+| **password.service.ts** | Hash passwords with bcrypt (cost factor 12), timing-safe comparison | `hash()`, `verify()` |
+| **mfa.service.ts** | Generate TOTP secrets (RFC 6238), QR URIs, verify tokens, backup codes | `generateSecret()`, `verifyToken()`, `generateBackupCodes()` |
+| **device-trust.service.ts** | Device fingerprinting, trust check, CRUD for trusted devices | `createFingerprint()`, `isTrusted()`, `register()`, `revoke()` |
+| **jwt-auth.guard.ts** | NestJS Guard — extracts Bearer JWT, verifies via `JwtService`, attaches `{ userId, email, role }` to request | Implements `CanActivate` |
+| **roles.guard.ts** | NestJS Guard — checks `@Roles()` decorator metadata against user role. Returns 403 if insufficient. | Implements `CanActivate` |
 
-### 3.2 Accounts Service Modules
+### 3.2 Accounts Service (NestJS — `services/accounts-service/`)
 
 ```
-src/lib/services/accounts/
-├── account.service.ts  # Balance queries, account listing, statements
-└── degraded.ts         # Service health flag check for Payments dependency
+services/accounts-service/
+├── src/
+│   ├── accounts/
+│   │   ├── accounts.module.ts
+│   │   ├── accounts.controller.ts   # GET /accounts, GET /accounts/:id, GET /accounts/:id/statements
+│   │   ├── accounts.service.ts      # Balance queries, statements, create accounts
+│   │   └── dto/
+│   │       └── statements-query.dto.ts
+│   ├── health/
+│   │   └── degraded.service.ts      # Service health flag for Payments dependency
+│   ├── prisma/
+│   │   └── prisma.service.ts
+│   ├── app.module.ts
+│   └── main.ts                      # Bootstrap (port 4002)
+├── prisma/
+│   ├── schema.prisma                # Accounts domain models ONLY
+│   └── seed.ts
+├── package.json
+├── Dockerfile
+└── .env
 ```
 
-| Module | Responsibility | Key Exports |
+| Module | Responsibility | Key Methods |
 |:---|:---|:---|
-| **account.service.ts** | List user accounts, get single account detail, generate date-range filtered statements, create accounts during registration | `getAccounts()`, `getAccountById()`, `getStatements()`, `createAccount()` |
-| **degraded.ts** | Check health status of dependent services (Payments); determine if read-only mode should be surfaced to clients | `isServiceHealthy()`, `getDegradedServices()` |
+| **accounts.service.ts** | List user accounts, get detail, generate filtered statements, create accounts (called from Auth via HTTP) | `getAccounts()`, `getAccountById()`, `getStatements()`, `createAccount()` |
+| **degraded.service.ts** | Check health of Payments dependency; surface read-only mode | `isServiceHealthy()`, `getDegradedServices()` |
 
-### 3.3 Middleware Modules (Shared — Auth-Owned)
+### 3.3 Validation Strategy (NestJS)
+
+Instead of Zod schemas, NestJS uses **class-validator** + **class-transformer** decorators on DTO classes:
+
+```typescript
+// services/auth-service/src/auth/dto/register.dto.ts
+import { IsString, IsEmail, MinLength, MaxLength, Matches } from 'class-validator';
+
+export class RegisterDto {
+  @IsString()
+  @MinLength(10)
+  @MaxLength(20)
+  @Matches(/^[0-9A-Za-z]+$/)
+  nationalId: string;
+
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  fullName: string;
+
+  @IsEmail()
+  @MaxLength(255)
+  email: string;
+
+  @IsString()
+  @MinLength(12)
+  @MaxLength(128)
+  @Matches(/[A-Z]/, { message: 'Must contain uppercase' })
+  @Matches(/[a-z]/, { message: 'Must contain lowercase' })
+  @Matches(/[0-9]/, { message: 'Must contain digit' })
+  @Matches(/[^A-Za-z0-9]/, { message: 'Must contain special character' })
+  password: string;
+}
+```
+
+NestJS `ValidationPipe` (global) auto-validates all incoming DTOs. No manual `safeParse()` calls needed.
+
+### 3.4 Database Layer (Per-Service)
+
+Each service has its own Prisma schema and database:
 
 ```
-src/lib/middleware/
-├── with-auth.ts        # JWT extraction + verification → request context
-├── with-role.ts        # RBAC guard (requires specific role)
-├── error-handler.ts    # Centralized error response formatting
-└── idempotency.ts      # x-request-id dedup (shared with Payments)
-```
+services/auth-service/prisma/
+├── schema.prisma          # BackupIdentity, User, MfaFactor, TrustedDevice, RefreshToken
+├── seed.ts                # Auth demo users + backup identities
+└── migrations/
 
-| Middleware | Behavior |
-|:---|:---|
-| **withAuth()** | Extracts `Authorization: Bearer <token>`, verifies JWT signature + expiry via `jose`, attaches `{ userId, email, role }` to request context. Returns `401 Unauthorized` if invalid/expired. |
-| **withRole(requiredRole)** | Wraps `withAuth()`. After authentication, checks `role` against required role. Returns `403 Forbidden` if insufficient. |
-| **errorHandler()** | Catches thrown errors, maps to standard JSON error response `{ error: { code, message, details? } }`. Never leaks stack traces in production. |
-
-### 3.4 Validation Schemas (Auth Domain)
-
-```
-src/lib/validation/
-└── auth.schema.ts      # Zod schemas for all auth endpoints
-```
-
-Each endpoint gets a Zod schema for **request body**, **query params**, and **path params** validation. Validation runs before any business logic.
-
-### 3.5 Database Layer
-
-```
-src/lib/db/
-└── prisma.ts           # Prisma client singleton (prevents connection pool exhaustion)
-```
-
-```
-prisma/
-├── schema.prisma       # ALL domain models (Auth owns the schema file)
-├── seed.ts             # Demo data for all domains
-└── migrations/         # Auto-generated migration files
+services/accounts-service/prisma/
+├── schema.prisma          # Account (+ Transaction read model if needed)
+├── seed.ts                # Demo accounts
+└── migrations/
 ```
 
 > [!IMPORTANT]
-> **Auth owns the Prisma schema file.** All members contribute their domain models via PRs to the `feat/auth-accounts` branch (or the schema is merged first to `main` on Day 1). This prevents migration conflicts.
+> **Each service owns its own schema and database.** No service reads or writes another service's database. Cross-domain data is accessed via HTTP or events. This enforces the data isolation principle from Phase 1 RECON §3.1.
 
 ---
 
@@ -514,37 +598,38 @@ VaultGuard's scenario requires users to verify identity against **surviving back
 | Layer | Technology | Version | Purpose |
 |:------|:-----------|:--------|:--------|
 | **Runtime** | Node.js | 20 LTS | Server-side JavaScript |
-| **Framework** | Next.js | 15 (App Router) | API routes + SSR frontend |
-| **Language** | TypeScript | 5.x (strict mode) | Type safety |
+| **Backend Services** | NestJS | 10.x | Enterprise TypeScript framework for microservices (Auth, Accounts, etc.) |
+| **Frontend** | Next.js | 15 (App Router) | React frontend UI application (Member 1) |
+| **Language** | TypeScript | 5.x (strict mode) | Type safety across all services |
 
 ### 6.2 Auth & Crypto Libraries
 
 | Library | Version | Purpose | Why This Library |
 |:--------|:--------|:--------|:-----------------|
-| **jose** | ^5.x | JWT sign/verify (ES256 or HS256) | Zero-dependency, Web Crypto API-compatible, edge-ready |
-| **bcrypt** (or **bcryptjs**) | ^5.x / ^2.x | Password hashing | Industry standard; bcryptjs for pure JS (no native compilation issues) |
+| **@nestjs/jwt** / **jose** | ^10.x / ^5.x | JWT sign/verify (HS256) | NestJS JWT module with Web Crypto fallback |
+| **bcryptjs** | ^3.x | Password hashing | Industry standard; pure JS for cross-platform reliability |
 | **otplib** | ^12.x | TOTP generation & verification | Full RFC 6238 compliance, QR URI generation |
 | **qrcode** | ^1.x | QR code image generation for MFA setup | Server-side QR rendering for TOTP enrollment |
-| **uuid** | ^9.x | Generate UUIDs for tokens, correlation IDs | Standard RFC 4122 UUIDs |
-| **zod** | ^3.x | Request validation schemas | TypeScript-first, composable, great error messages |
+| **uuid** | ^9.x / ^10.x | Generate UUIDs for tokens, correlation IDs | Standard RFC 4122 UUIDs |
+| **class-validator** | ^0.14.x | DTO request validation schemas | NestJS native declarative decorator validation |
+| **class-transformer** | ^0.5.x | DTO object transformation | NestJS native payload transformation |
 
 ### 6.3 Database & ORM
 
 | Tool | Version | Purpose |
 |:-----|:--------|:--------|
-| **PostgreSQL** | 15+ | Primary relational database |
-| **Prisma** | ^5.x | ORM, migrations, type-safe queries, seed scripts |
-| **Redis** (via ioredis) | ^5.x | Rate limiting counters, session cache (supplementary) |
+| **PostgreSQL** | 16-alpine | Primary relational database (dedicated container per domain microservice) |
+| **Prisma** | ^6.x | ORM, migrations, type-safe queries, seed scripts (per service) |
+| **Redis** | 7-alpine | Rate limiting counters, session cache (shared container) |
+| **Nginx** | alpine | Local API Gateway for routing requests to microservice ports in dev |
 
 ### 6.4 Development Tools
 
 | Tool | Purpose |
 |:-----|:--------|
-| **ESLint** | Code linting (Next.js + TypeScript rules) |
-| **Prettier** | Code formatting (consistent style) |
-| **Husky** | Git hooks (pre-commit lint, pre-push test) |
-| **Vitest** | Unit testing framework |
-| **Supertest** | HTTP integration testing |
+| **Nest CLI** | Code generation, development server (`nest start --watch`) |
+| **ESLint / Prettier** | Code linting and formatting |
+| **Jest / Supertest** | NestJS unit and E2E testing framework |
 | **Prisma Studio** | Visual database browser for development |
 | **Thunder Client / Postman** | Manual API testing |
 
@@ -1469,42 +1554,36 @@ docs(auth): document API response formats
 Phase 2 (MVP)                    Phase 3 (Fortify)               Future
 ─────────────                    ─────────────────               ──────
 
-Modular monolith          →      Extract to Cloud Run       →    Kubernetes (GKE)
-  in Next.js                       containers
+Independent NestJS        →      Deploy to Cloud Run        →    Kubernetes (GKE)
+  microservices                    containers via Cloud Build
 
-Single PostgreSQL         →      Per-domain Cloud SQL       →    Read replicas +
-  (logical isolation)              (physical isolation)           connection pooling
+Per-domain PostgreSQL     →      Per-domain Cloud SQL       →    Read replicas +
+  (Docker containers)              (private IP VPC)               connection pooling
 
-In-process EventBus       →      Google Pub/Sub             →    Pub/Sub with
-                                                                  ordering keys
+Nginx API Gateway         →      GCP API Gateway +          →    Cloud Armor WAF +
+  (local dev routing)              Cloud Load Balancer            rate-based rules
+
+Redis container           →      Memorystore (Redis)        →    Multi-region cache
+  (counters & sessions)            cluster                        cluster
+
+Local Pub/Sub mock        →      Google Cloud Pub/Sub       →    Pub/Sub with ordering
+  (event bus)                      topics & subscriptions         keys + DLQ
 
 .env secrets              →      Secret Manager +           →    Workload Identity
                                    Cloud KMS                      Federation
-
-bcryptjs passwords        →      Cloud KMS-backed           →    Passkey/FIDO2
-                                   key operations                 support
-
-In-memory rate limits     →      Redis (Memorystore)        →    Cloud Armor
-  (per instance)                   cluster                        rate policies
-
-JSON structured logs      →      Cloud Logging +            →    Cloud Trace +
-                                   Monitoring                     Error Reporting
-
-Docker Compose            →      Cloud Build +              →    Terraform IaC
-                                   Artifact Registry              + GitOps
 ```
 
-### 14.2 What to Build Now That Scales Later
+### 14.2 What We Built That Scales
 
-| Pattern | MVP Implementation | Why It Scales |
-|:--------|:-------------------|:-------------|
-| **Service modules** | `src/lib/services/auth/` | Each directory becomes a Cloud Run service |
-| **Event emission** | `eventBus.emit('auth.login', {...})` | Swap to `pubsub.topic('auth.login').publish(...)` |
-| **Prisma per-model** | Models grouped by domain prefix | Each group moves to its own `schema.prisma` |
-| **Middleware chain** | `withAuth() → withRole() → handler()` | Same pattern in Express/NestJS microservice |
-| **Standard error codes** | `AUTH_INVALID_CREDENTIALS` | Same codes across all services |
-| **Correlation IDs** | `x-correlation-id` header | Traces across distributed services |
-| **Health checks** | `GET /api/health` | Cloud Run + Load Balancer health probes |
+| Pattern | Microservices Implementation | Why It Scales |
+|:--------|:-----------------------------|:-------------|
+| **Independent Services** | `services/auth-service/`, `services/accounts-service/` | Containerized microservices on independent ports; ready for Cloud Run |
+| **Data Isolation** | Dedicated `schema.prisma` & DB per microservice | Zero cross-domain joins; physical database separation |
+| **NestJS Architecture** | Injectable services, Guards, Interceptors, DTOs | Enterprise patterns out of the box; clean testability |
+| **API Gateway Throttling** | Nginx / API Gateway route rules | Single ingress point; protects services from traffic spikes |
+| **Standard Error Codes** | `AUTH_INVALID_CREDENTIALS` | Uniform machine-readable codes across all microservices |
+| **Correlation IDs** | `x-correlation-id` header passed through | Distributed tracing across microservice call chains |
+| **Health Probes** | `GET /health` on every microservice | Cloud Run / Kubernetes readiness and liveness probes |
 
 ### 14.3 Decisions Deferred to Phase 3
 
