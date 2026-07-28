@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from './password.service';
 import { JwtAuthService } from './jwt.service';
 import { MfaService } from './mfa.service';
+import { DeviceTrustService } from './device-trust.service';
+import { EventBusService } from '../events/event-bus.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { MfaVerifyDto } from './dto/mfa-verify.dto';
@@ -16,6 +18,8 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly jwtAuthService: JwtAuthService,
     private readonly mfaService: MfaService,
+    private readonly deviceTrustService: DeviceTrustService,
+    private readonly eventBus: EventBusService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -65,13 +69,24 @@ export class AuthService {
         email,
         passwordHash,
         nationalId,
-        fullName: backupRecord.fullName, // canonical name from backup record
+        fullName: backupRecord.fullName,
         role: UserRole.CUSTOMER,
         mfaEnabled: false,
       },
     });
 
-    // 4. Trigger synchronous internal HTTP call to Accounts Service to create default accounts
+    // 4. Emit auth.register event to EventBus (FR-19)
+    this.eventBus.emit({
+      eventType: 'auth.register',
+      actor: newUser.id,
+      actorRole: newUser.role,
+      resource: 'user',
+      resourceId: newUser.id,
+      metadata: { email: newUser.email, nationalId: newUser.nationalId },
+      timestamp: new Date().toISOString(),
+    });
+
+    // 5. Trigger internal HTTP call to Accounts Service to create default accounts
     try {
       const accountsServiceUrl = this.configService.get<string>('ACCOUNTS_SERVICE_URL', 'http://localhost:4002');
       const internalSecret = this.configService.get<string>('INTERNAL_SERVICE_SECRET', 'vaultguard-internal-secret-key-2026');
@@ -102,7 +117,7 @@ export class AuthService {
     };
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, userAgent?: string, ip?: string) {
     const { email, password } = dto;
 
     const user = await this.prisma.user.findUnique({
@@ -120,7 +135,12 @@ export class AuthService {
       });
     }
 
-    if (user.mfaEnabled) {
+    // Check device trust (FR-03)
+    const { fingerprint } = this.deviceTrustService.createFingerprint(userAgent, ip);
+    const isTrusted = await this.deviceTrustService.isTrustedDevice(user.id, fingerprint);
+
+    // Require MFA if MFA is enabled OR device is untrusted
+    if (user.mfaEnabled || !isTrusted) {
       const mfaToken = await this.jwtAuthService.signAccessToken({
         userId: user.id,
         email: user.email,
@@ -129,8 +149,11 @@ export class AuthService {
 
       return {
         requiresMfa: true,
+        untrustedDevice: !isTrusted,
         mfaToken,
-        message: 'MFA verification required.',
+        message: !isTrusted
+          ? 'Unrecognized device detected. MFA verification required.'
+          : 'MFA verification required.',
       };
     }
 
@@ -141,6 +164,16 @@ export class AuthService {
     });
 
     const { rawToken: refreshToken } = await this.jwtAuthService.createRefreshToken(user.id);
+
+    // Emit auth.login event
+    this.eventBus.emit({
+      eventType: 'auth.login',
+      actor: user.id,
+      actorRole: user.role,
+      resource: 'session',
+      metadata: { email: user.email, isTrustedDevice: isTrusted },
+      timestamp: new Date().toISOString(),
+    });
 
     return {
       accessToken,
@@ -183,10 +216,21 @@ export class AuthService {
     return result;
   }
 
-  async logout(rawRefreshToken: string) {
+  async logout(rawRefreshToken: string, userId?: string) {
     if (rawRefreshToken) {
       await this.jwtAuthService.revokeRefreshToken(rawRefreshToken);
     }
+
+    if (userId) {
+      this.eventBus.emit({
+        eventType: 'auth.logout',
+        actor: userId,
+        actorRole: 'CUSTOMER',
+        resource: 'session',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     return { message: 'Logged out successfully.' };
   }
 
@@ -208,7 +252,6 @@ export class AuthService {
 
     const mfaSetup = await this.mfaService.generateMfaSetup(user.email);
 
-    // Save or update MfaFactor in database
     const existingFactor = await this.prisma.mfaFactor.findFirst({
       where: { userId },
     });
@@ -232,6 +275,15 @@ export class AuthService {
       });
     }
 
+    this.eventBus.emit({
+      eventType: 'auth.mfa_change',
+      actor: userId,
+      actorRole: user.role,
+      resource: 'mfa_factor',
+      metadata: { action: 'setup' },
+      timestamp: new Date().toISOString(),
+    });
+
     return {
       secret: mfaSetup.secret,
       qrUri: mfaSetup.qrUri,
@@ -239,10 +291,9 @@ export class AuthService {
     };
   }
 
-  async verifyMfa(dto: MfaVerifyDto) {
+  async verifyMfa(dto: MfaVerifyDto, userAgent?: string, ip?: string) {
     const { mfaToken, code } = dto;
 
-    // Verify token to find userId
     const payload = await this.jwtAuthService.verifyAccessToken(mfaToken);
 
     if (!payload || !payload.sub) {
@@ -273,16 +324,13 @@ export class AuthService {
       });
     }
 
-    // Check TOTP code
     let isVerified = this.mfaService.verifyTotp(code, mfaFactor.secret);
 
-    // If TOTP fails, check backup codes
     if (!isVerified && mfaFactor.backupCodes.length > 0) {
       const backupCheck = await this.mfaService.verifyBackupCode(code, mfaFactor.backupCodes);
       if (backupCheck.isValid) {
         isVerified = true;
 
-        // Burn single-use backup code
         const updatedBackupCodes = [...mfaFactor.backupCodes];
         updatedBackupCodes.splice(backupCheck.matchedIndex, 1);
 
@@ -304,7 +352,7 @@ export class AuthService {
       });
     }
 
-    // Mark MFA verified & enable on user profile
+    // Enable MFA on user profile
     await this.prisma.$transaction([
       this.prisma.mfaFactor.update({
         where: { id: mfaFactor.id },
@@ -315,6 +363,19 @@ export class AuthService {
         data: { mfaEnabled: true },
       }),
     ]);
+
+    // Automatically register current device as trusted upon successful MFA verification
+    if (userAgent && ip) {
+      await this.deviceTrustService.registerDevice(userId, userAgent, ip);
+      this.eventBus.emit({
+        eventType: 'auth.device_new',
+        actor: userId,
+        actorRole: payload.role,
+        resource: 'device',
+        metadata: { userAgent, ip },
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -328,6 +389,15 @@ export class AuthService {
 
     const { rawToken: refreshToken } = await this.jwtAuthService.createRefreshToken(user.id);
 
+    this.eventBus.emit({
+      eventType: 'auth.login',
+      actor: user.id,
+      actorRole: user.role,
+      resource: 'session',
+      metadata: { email: user.email, mfaVerified: true },
+      timestamp: new Date().toISOString(),
+    });
+
     return {
       accessToken,
       refreshToken,
@@ -339,5 +409,34 @@ export class AuthService {
         role: user.role,
       },
     };
+  }
+
+  /**
+   * Support Operator user lookup (FR-22)
+   */
+  async getOperatorUserSearch(query?: string) {
+    const users = await this.prisma.user.findMany({
+      where: query
+        ? {
+            OR: [
+              { email: { contains: query, mode: 'insensitive' } },
+              { fullName: { contains: query, mode: 'insensitive' } },
+              { nationalId: { contains: query, mode: 'insensitive' } },
+            ],
+          }
+        : undefined,
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        nationalId: true,
+        role: true,
+        mfaEnabled: true,
+        createdAt: true,
+      },
+      take: 50,
+    });
+
+    return users;
   }
 }

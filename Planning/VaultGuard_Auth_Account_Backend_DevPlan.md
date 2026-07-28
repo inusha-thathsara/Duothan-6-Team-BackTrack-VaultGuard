@@ -1681,12 +1681,12 @@ Local Pub/Sub mock        →      Google Cloud Pub/Sub       →    Pub/Sub wit
 - [x] Unit tests for MFA module
 
 #### Day 4 (Advanced Auth + Accounts Complete) ✅
-- [ ] Device trust — fingerprint, check, CRUD
-- [ ] Step-up MFA middleware working
-- [ ] RBAC — withRole() guards admin routes
+- [x] Device trust — fingerprint, check, CRUD
+- [x] Step-up MFA middleware working
+- [x] RBAC — withRole() guards admin routes
 - [x] Degraded mode — health flag check
-- [ ] Auth events emitted to EventBus
-- [ ] All auth unit tests pass
+- [x] Auth events emitted to EventBus
+- [x] All auth unit tests pass
 - [x] All accounts unit tests pass
 
 #### Day 5-6 (Integration) ✅

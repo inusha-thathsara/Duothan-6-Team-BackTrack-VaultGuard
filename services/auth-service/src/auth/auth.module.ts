@@ -6,9 +6,12 @@ import { AuthService } from './auth.service';
 import { PasswordService } from './password.service';
 import { JwtAuthService } from './jwt.service';
 import { MfaService } from './mfa.service';
+import { DeviceTrustService } from './device-trust.service';
+import { EventBusService } from '../events/event-bus.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { StepUpMfaGuard } from './guards/step-up-mfa.guard';
 
 @Module({
   imports: [
@@ -29,10 +32,22 @@ import { RolesGuard } from './guards/roles.guard';
     PasswordService,
     JwtAuthService,
     MfaService,
+    DeviceTrustService,
+    EventBusService,
     PrismaService,
     JwtAuthGuard,
     RolesGuard,
+    StepUpMfaGuard,
   ],
-  exports: [AuthService, JwtAuthService, MfaService, JwtAuthGuard, RolesGuard],
+  exports: [
+    AuthService,
+    JwtAuthService,
+    MfaService,
+    DeviceTrustService,
+    EventBusService,
+    JwtAuthGuard,
+    RolesGuard,
+    StepUpMfaGuard,
+  ],
 })
 export class AuthModule {}
