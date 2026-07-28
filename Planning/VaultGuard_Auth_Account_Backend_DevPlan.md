@@ -1690,28 +1690,28 @@ Local Pub/Sub mock        →      Google Cloud Pub/Sub       →    Pub/Sub wit
 - [x] All accounts unit tests pass
 
 #### Day 5-6 (Integration) ✅
-- [ ] End-to-end: register → login → MFA → dashboard → accounts
-- [ ] Payment service can check balances via account service
-- [ ] Audit consumer receives auth events
-- [ ] All integration tests pass
-- [ ] No TypeScript errors (`tsc --noEmit`)
-- [ ] No lint errors (`npm run lint`)
-- [ ] Code review complete
+- [x] End-to-end: register → login → MFA → dashboard → accounts
+- [x] Payment service can check balances via account service
+- [x] Audit consumer receives auth events
+- [x] All integration tests pass
+- [x] No TypeScript errors (`tsc --noEmit`)
+- [x] No lint errors (`npm run lint`)
+- [x] Code review complete
 
-### 16.2 Security Review Checklist (Pre-Submission)
+### 16.2 Security Review Checklist (Pre-Submission) ✅
 
-- [ ] No plaintext passwords in DB (verify via Prisma Studio)
-- [ ] No secrets in git history (`git log --all -p | grep -i password`)
-- [ ] JWT secret is strong (256-bit minimum)
-- [ ] httpOnly flag set on refresh token cookie
-- [ ] Secure flag set on cookie (for production)
-- [ ] SameSite=Strict on cookie
-- [ ] Rate limiting active on login/register endpoints
-- [ ] Input validation on every endpoint
-- [ ] No user enumeration via registration/login error messages
-- [ ] No PII in application logs
-- [ ] CORS limited to allowed origins
-- [ ] Helmet security headers applied
+- [x] No plaintext passwords in DB (verify via Prisma Studio)
+- [x] No secrets in git history (`git log --all -p | grep -i password`)
+- [x] JWT secret is strong (256-bit minimum)
+- [x] httpOnly flag set on refresh token cookie
+- [x] Secure flag set on cookie (for production)
+- [x] SameSite=Strict on cookie
+- [x] Rate limiting active on login/register endpoints
+- [x] Input validation on every endpoint (`class-validator` DTOs)
+- [x] No user enumeration via registration/login error messages
+- [x] No PII in application logs
+- [x] CORS limited to allowed origins
+- [x] Helmet security headers applied
 
 ---
 

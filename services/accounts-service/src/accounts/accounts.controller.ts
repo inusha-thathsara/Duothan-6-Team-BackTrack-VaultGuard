@@ -87,8 +87,38 @@ export class InternalAccountsController {
     @Body() dto: CreateDefaultAccountDto,
     @Headers('x-internal-secret') internalSecret: string,
   ) {
-    const expectedSecret = this.configService.get<string>('INTERNAL_SERVICE_SECRET', 'vaultguard-internal-secret-key-2026');
+    this.verifyInternalSecret(internalSecret);
+    const data = await this.accountsService.createDefaultAccounts(dto);
+    return {
+      success: true,
+      data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: crypto.randomUUID(),
+      },
+    };
+  }
 
+  @Get(':id/balance')
+  @HttpCode(HttpStatus.OK)
+  async getInternalBalance(
+    @Param('id') accountId: string,
+    @Headers('x-internal-secret') internalSecret: string,
+  ) {
+    this.verifyInternalSecret(internalSecret);
+    const data = await this.accountsService.checkInternalBalance(accountId);
+    return {
+      success: true,
+      data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: crypto.randomUUID(),
+      },
+    };
+  }
+
+  private verifyInternalSecret(internalSecret: string) {
+    const expectedSecret = this.configService.get<string>('INTERNAL_SERVICE_SECRET', 'vaultguard-internal-secret-key-2026');
     if (!internalSecret || internalSecret !== expectedSecret) {
       throw new UnauthorizedException({
         success: false,
@@ -99,15 +129,5 @@ export class InternalAccountsController {
         },
       });
     }
-
-    const data = await this.accountsService.createDefaultAccounts(dto);
-    return {
-      success: true,
-      data,
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: crypto.randomUUID(),
-      },
-    };
   }
 }

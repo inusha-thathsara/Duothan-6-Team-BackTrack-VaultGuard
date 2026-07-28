@@ -59,13 +59,11 @@ export class AccountsService {
   }
 
   async getStatements(accountId: string, userId: string, query: StatementsQueryDto) {
-    // 1. Verify account ownership
     await this.getAccountById(accountId, userId);
 
     const { from, to, page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
-    // 2. Build date filters
     const dateFilter: any = {};
     if (from) {
       dateFilter.gte = new Date(from);
@@ -85,7 +83,6 @@ export class AccountsService {
       whereCondition.createdAt = dateFilter;
     }
 
-    // 3. Query transactions & total count
     const [transactions, total] = await Promise.all([
       this.prisma.transaction.findMany({
         where: whereCondition,
@@ -152,5 +149,37 @@ export class AccountsService {
     ]);
 
     return accounts;
+  }
+
+  /**
+   * Internal balance check for Payments Service integration (Member 3)
+   */
+  async checkInternalBalance(accountId: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'ACCOUNT_NOT_FOUND',
+          message: 'Account not found.',
+          details: null,
+        },
+      });
+    }
+
+    return {
+      accountId: account.id,
+      userId: account.userId,
+      accountNumber: account.accountNumber,
+      balance: account.balance.toFixed(2),
+      currency: account.currency,
+      status: account.status,
+      dailyLimit: account.dailyLimit.toFixed(2),
+      singleLimit: account.singleLimit.toFixed(2),
+      canDebit: account.status === AccountStatus.ACTIVE,
+    };
   }
 }
