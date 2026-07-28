@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VaultGuard — Phase 02 Banking Platform
 
-## Getting Started
+VaultGuard is a domain-isolated, high-resilience digital banking system designed for **Duothan 6.0 (Phase 2 · REBUILD)** by **Team BackTrack**.
 
-First, run the development server:
+---
 
+## 🏛️ Architecture & System Design
+
+The architecture mirrors Phase 1's microservices design using NestJS-style domain service modules inside Next.js 15:
+
+- **Auth Service (`FR-01` to `FR-05`):** JWT identity verification, TOTP MFA, trusted devices, step-up MFA, RBAC.
+- **Accounts Service (`FR-06` to `FR-08`):** Multi-currency accounts, balances, statements, degraded mode resilience.
+- **Payments Service (`FR-09` to `FR-14b`):** Transfer Saga engine, idempotency (`x-request-id`), risk checks, bill pay, transactional outbox pattern.
+- **Loans Service (`FR-15`, `FR-16`):** Loan balances, repayment schedules, atomic repayments.
+- **Audit Service (`FR-17` to `FR-19`):** Immutable security logs, activity feeds, Dead Letter Queue (DLQ).
+- **Notification Service (`FR-17`):** Event-driven alert processing.
+
+---
+
+## 🚀 Quick Start Guide
+
+### Prerequisites
+- Node.js >= 20
+- Docker & Docker Compose (or local PostgreSQL)
+
+### Setup Steps
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/inusha-thathsara/Duothan-6-Team-BackTrack-VaultGuard.git
+   cd Duothan-6-Team-BackTrack-VaultGuard
+   ```
+
+2. **Configure Environment:**
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Start Databases (Docker):**
+   ```bash
+   docker-compose up -d
+   ```
+
+4. **Initialize Database & Seed Data:**
+   ```bash
+   npx prisma db push
+   npx prisma db seed
+   ```
+
+5. **Start Development Server:**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## 🧪 Testing
+
+### Automated Unit Tests
+Run the Vitest test suite:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm test
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Type Checking & Code Quality
+```bash
+npm run lint
+npx tsc --noEmit
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📋 API Reference Summary
 
-## Learn More
+### Payments & Transfers (`Member 3`)
+- `POST /api/payments/transfer` — Idempotent fund transfer (requires `x-request-id` header & Bearer token)
+- `POST /api/payments/bill-pay` — Idempotent bill payment
+- `GET /api/payments/history` — Paginated transaction history with type/status/date filters
+- `GET /api/payees` & `POST /api/payees` — Manage saved payees and billers
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Loans (`Member 3`)
+- `GET /api/loans` — View active loans with full repayment schedules
+- `POST /api/loans/repay` — Atomic loan repayment from eligible account
