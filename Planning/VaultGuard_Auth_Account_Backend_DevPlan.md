@@ -273,10 +273,10 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
 **Acceptance Criteria:**
-- [ ] `npx prisma migrate dev` runs without errors
-- [ ] `npx prisma db seed` populates demo data
-- [ ] Prisma Studio (`npx prisma studio`) shows all tables with data
-- [ ] All team members can run the project locally
+- [x] `npx prisma migrate dev` runs without errors
+- [x] `npx prisma db seed` populates demo data
+- [x] Prisma Studio (`npx prisma studio`) shows all tables with data
+- [x] All team members can run the project locally
 
 ---
 
@@ -284,18 +284,18 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 **Goal:** Users can register, log in with password, receive JWTs, and log out.
 
-| # | Task | Endpoint / File | FR Ref |
-|:--|:-----|:----------------|:-------|
-| 1.1 | Implement `password.ts` — bcrypt hash/verify | `src/lib/services/auth/password.ts` | FR-02 |
-| 1.2 | Implement `jwt.ts` — sign/verify access tokens | `src/lib/services/auth/jwt.ts` | FR-04 |
-| 1.3 | Implement refresh token rotation | `src/lib/services/auth/jwt.ts` | FR-04 |
-| 1.4 | Implement `withAuth()` middleware | `src/lib/middleware/with-auth.ts` | FR-05 |
-| 1.5 | Implement `withRole()` middleware | `src/lib/middleware/with-role.ts` | FR-05 |
-| 1.6 | Create Zod validation schemas | `src/lib/validation/auth.schema.ts` | — |
-| 1.7 | Build `POST /api/auth/register` | `src/app/api/auth/register/route.ts` | FR-01 |
-| 1.8 | Build `POST /api/auth/login` | `src/app/api/auth/login/route.ts` | FR-02 |
-| 1.9 | Build `POST /api/auth/refresh` | `src/app/api/auth/refresh/route.ts` | FR-04 |
-| 1.10 | Build `POST /api/auth/logout` | `src/app/api/auth/logout/route.ts` | FR-04 |
+| # | Task | Endpoint / File | FR Ref | Status |
+|:--|:-----|:----------------|:-------|:-------|
+| 1.1 | Implement `password.ts` — bcrypt hash/verify | `src/lib/services/auth/password.ts` | FR-02 | ✅ Done |
+| 1.2 | Implement `jwt.ts` — sign/verify access tokens | `src/lib/services/auth/jwt.ts` | FR-04 | ✅ Done |
+| 1.3 | Implement refresh token rotation | `src/lib/services/auth/jwt.ts` | FR-04 | ✅ Done |
+| 1.4 | Implement `withAuth()` middleware | `src/lib/middleware/with-auth.ts` | FR-05 | ✅ Done |
+| 1.5 | Implement `withRole()` middleware | `src/lib/middleware/with-role.ts` | FR-05 | ✅ Done |
+| 1.6 | Create Zod validation schemas | `src/lib/validation/auth.schema.ts` | — | ✅ Done |
+| 1.7 | Build `POST /api/auth/register` | `src/app/api/auth/register/route.ts` | FR-01 | ✅ Done |
+| 1.8 | Build `POST /api/auth/login` | `src/app/api/auth/login/route.ts` | FR-02 | ✅ Done |
+| 1.9 | Build `POST /api/auth/refresh` | `src/app/api/auth/refresh/route.ts` | FR-04 | ✅ Done |
+| 1.10 | Build `POST /api/auth/logout` | `src/app/api/auth/logout/route.ts` | FR-04 | ✅ Done |
 
 **Implementation Order:** 1.1 → 1.2 → 1.3 → 1.6 → 1.4 → 1.5 → 1.7 → 1.8 → 1.9 → 1.10
 
@@ -303,11 +303,11 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 > **Build from the bottom up.** Utilities first (password, jwt), then middleware (withAuth), then validation schemas, then route handlers. Route handlers should be thin — just validate, call service, return response.
 
 **Acceptance Criteria:**
-- [ ] Register creates user in DB with hashed password
-- [ ] Login returns `{ accessToken }` + sets `refreshToken` httpOnly cookie
-- [ ] Protected route returns 401 without token, 200 with valid token
-- [ ] Refresh rotation issues new tokens and invalidates old
-- [ ] Logout clears cookie and revokes refresh token in DB
+- [x] Register creates user in DB with hashed password
+- [x] Login returns `{ accessToken }` + sets `refreshToken` httpOnly cookie
+- [x] Protected route returns 401 without token, 200 with valid token
+- [x] Refresh rotation issues new tokens and invalidates old
+- [x] Logout clears cookie and revokes refresh token in DB
 
 ---
 
@@ -1577,21 +1577,21 @@ Docker Compose            →      Cloud Build +              →    Terraform I
 ### 16.1 Daily Deliverables Checklist
 
 #### Day 1 (Foundation) ✅
-- [ ] Prisma schema complete with all domain models
-- [ ] Migrations run successfully
-- [ ] Seed script populates demo data
-- [ ] Prisma client singleton working
-- [ ] `.env.example` committed
-- [ ] Team can run `docker-compose up` + `prisma db seed`
+- [x] Prisma schema complete with all domain models
+- [x] Migrations run successfully
+- [x] Seed script populates demo data
+- [x] Prisma client singleton working
+- [x] `.env.example` committed
+- [x] Team can run `docker-compose up` + `prisma db seed`
 
 #### Day 2 (Core Auth) ✅
-- [ ] `POST /api/auth/register` — working with backup identity check
-- [ ] `POST /api/auth/login` — returns JWT
-- [ ] `POST /api/auth/refresh` — rotates tokens
-- [ ] `POST /api/auth/logout` — clears session
-- [ ] `withAuth()` middleware — protects routes
-- [ ] Zod validation on all endpoints
-- [ ] Unit tests for password + JWT modules
+- [x] `POST /api/auth/register` — working with backup identity check
+- [x] `POST /api/auth/login` — returns JWT
+- [x] `POST /api/auth/refresh` — rotates tokens
+- [x] `POST /api/auth/logout` — clears session
+- [x] `withAuth()` middleware — protects routes
+- [x] Zod validation on all endpoints
+- [x] Unit tests for password + JWT modules
 
 #### Day 3 (MFA + Accounts Start) ✅
 - [ ] `POST /api/auth/mfa/setup` — generates TOTP secret
