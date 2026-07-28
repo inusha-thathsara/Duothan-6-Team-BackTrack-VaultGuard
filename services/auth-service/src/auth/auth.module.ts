@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PasswordService } from './password.service';
 import { JwtAuthService } from './jwt.service';
+import { MfaService } from './mfa.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -27,10 +28,11 @@ import { RolesGuard } from './guards/roles.guard';
     AuthService,
     PasswordService,
     JwtAuthService,
+    MfaService,
     PrismaService,
     JwtAuthGuard,
     RolesGuard,
   ],
-  exports: [AuthService, JwtAuthService, JwtAuthGuard, RolesGuard],
+  exports: [AuthService, JwtAuthService, MfaService, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}

@@ -2,8 +2,10 @@ import { Injectable, BadRequestException, ConflictException, UnauthorizedExcepti
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from './password.service';
 import { JwtAuthService } from './jwt.service';
+import { MfaService } from './mfa.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { MfaVerifyDto } from './dto/mfa-verify.dto';
 import { UserRole } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 
@@ -13,6 +15,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly passwordService: PasswordService,
     private readonly jwtAuthService: JwtAuthService,
+    private readonly mfaService: MfaService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -84,7 +87,6 @@ export class AuthService {
           fullName: newUser.fullName,
         }),
       }).catch(() => {
-        // Log warning if accounts service is unreachable in standalone dev mode
         console.warn('⚠️ Accounts Service unreachable during registration (degraded mode).');
       });
     } catch {
@@ -186,5 +188,156 @@ export class AuthService {
       await this.jwtAuthService.revokeRefreshToken(rawRefreshToken);
     }
     return { message: 'Logged out successfully.' };
+  }
+
+  async setupMfa(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException({
+        success: false,
+        error: {
+          code: 'AUTH_USER_NOT_FOUND',
+          message: 'User not found.',
+          details: null,
+        },
+      });
+    }
+
+    const mfaSetup = await this.mfaService.generateMfaSetup(user.email);
+
+    // Save or update MfaFactor in database
+    const existingFactor = await this.prisma.mfaFactor.findFirst({
+      where: { userId },
+    });
+
+    if (existingFactor) {
+      await this.prisma.mfaFactor.update({
+        where: { id: existingFactor.id },
+        data: {
+          secret: mfaSetup.secret,
+          backupCodes: mfaSetup.hashedBackupCodes,
+          verifiedAt: null,
+        },
+      });
+    } else {
+      await this.prisma.mfaFactor.create({
+        data: {
+          userId,
+          secret: mfaSetup.secret,
+          backupCodes: mfaSetup.hashedBackupCodes,
+        },
+      });
+    }
+
+    return {
+      secret: mfaSetup.secret,
+      qrUri: mfaSetup.qrUri,
+      backupCodes: mfaSetup.rawBackupCodes,
+    };
+  }
+
+  async verifyMfa(dto: MfaVerifyDto) {
+    const { mfaToken, code } = dto;
+
+    // Verify token to find userId
+    const payload = await this.jwtAuthService.verifyAccessToken(mfaToken);
+
+    if (!payload || !payload.sub) {
+      throw new UnauthorizedException({
+        success: false,
+        error: {
+          code: 'AUTH_MFA_SESSION_EXPIRED',
+          message: 'MFA session token is invalid or expired.',
+          details: null,
+        },
+      });
+    }
+
+    const userId = payload.sub;
+
+    const mfaFactor = await this.prisma.mfaFactor.findFirst({
+      where: { userId },
+    });
+
+    if (!mfaFactor) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'AUTH_MFA_NOT_CONFIGURED',
+          message: 'MFA factor is not configured for this user.',
+          details: null,
+        },
+      });
+    }
+
+    // Check TOTP code
+    let isVerified = this.mfaService.verifyTotp(code, mfaFactor.secret);
+
+    // If TOTP fails, check backup codes
+    if (!isVerified && mfaFactor.backupCodes.length > 0) {
+      const backupCheck = await this.mfaService.verifyBackupCode(code, mfaFactor.backupCodes);
+      if (backupCheck.isValid) {
+        isVerified = true;
+
+        // Burn single-use backup code
+        const updatedBackupCodes = [...mfaFactor.backupCodes];
+        updatedBackupCodes.splice(backupCheck.matchedIndex, 1);
+
+        await this.prisma.mfaFactor.update({
+          where: { id: mfaFactor.id },
+          data: { backupCodes: updatedBackupCodes },
+        });
+      }
+    }
+
+    if (!isVerified) {
+      throw new UnauthorizedException({
+        success: false,
+        error: {
+          code: 'AUTH_MFA_INVALID',
+          message: 'The MFA verification code entered is invalid.',
+          details: null,
+        },
+      });
+    }
+
+    // Mark MFA verified & enable on user profile
+    await this.prisma.$transaction([
+      this.prisma.mfaFactor.update({
+        where: { id: mfaFactor.id },
+        data: { verifiedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { mfaEnabled: true },
+      }),
+    ]);
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    const accessToken = await this.jwtAuthService.signAccessToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    const { rawToken: refreshToken } = await this.jwtAuthService.createRefreshToken(user.id);
+
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: 900,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
+    };
   }
 }
