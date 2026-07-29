@@ -1,13 +1,12 @@
 # VaultGuard — Secure Digital Banking Platform
 
-[![Duothan 6.0](https://img.shields.io/badge/Duothan_6.0-Team_BackTrack-0052CC.svg)](https://github.com/inusha-thathsara/Duothan-6-Team-BackTrack-VaultGuard)
-[![Architecture](https://img.shields.io/badge/Architecture-Independent_Microservices-009688.svg)]()
+[![Architecture](https://img.shields.io/badge/Architecture-Zero__Trust_Microservices-009688.svg)]()
 [![Platform](https://img.shields.io/badge/Platform-Google_Cloud_Platform-4285F4.svg)]()
-[![Backend](https://img.shields.io/badge/Backend-NestJS_10-E0234E.svg)]()
-[![Frontend](https://img.shields.io/badge/Frontend-Next.js_15-000000.svg)]()
-[![Database](https://img.shields.io/badge/Database-PostgreSQL_16-336791.svg)]()
+[![Framework](https://img.shields.io/badge/Framework-Next.js_16-000000.svg)]()
+[![Database](https://img.shields.io/badge/Database-PostgreSQL_16_|_Prisma_5-336791.svg)]()
+[![Testing](https://img.shields.io/badge/Testing-Vitest_2.1-6E9F18.svg)]()
 
-> **Post-Cyberattack Secure Banking Rebuild**  
+> **Post-Cyberattack Secure Banking Platform**  
 > *Rebuild the future. Defend the digital world.*
 
 ---
@@ -15,42 +14,29 @@
 ## 📋 Table of Contents
 
 - [Overview](#overview)
-- [Team BackTrack](#team-backtrack)
 - [System Architecture](#system-architecture)
-- [Microservices Overview](#microservices-overview)
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
 - [Quick Start & Local Development](#quick-start--local-development)
-- [API Reference](#api-reference)
-- [Database & Seeding](#database--seeding)
-- [Testing](#testing)
-- [Security Controls](#security-controls)
+- [Database Setup & Seeding](#database-setup--seeding)
+- [Complete API Reference](#complete-api-reference)
+- [Testing & Quality Verification](#testing--quality-verification)
+- [Security & Resilience Controls](#security--resilience-controls)
 - [Repository Structure](#repository-structure)
 
 ---
 
 ## 🛡️ Overview
 
-**VaultGuard** is a cloud-native digital banking platform designed for attack isolation, zero-trust security, disaster recovery, and financial inclusion. Following a global banking infrastructure cyberattack, VaultGuard restores daily banking operations (balances, transfers, payments, loans) on top of surviving customer backup records.
+**VaultGuard** is a cloud-native digital banking platform designed for attack isolation, zero-trust security, disaster recovery, and financial inclusion. Engineered following a major cyberattack, VaultGuard restores daily banking operations (balances, transfers, bill payments, loans, and audit trails) on top of surviving customer backup records.
 
 ### Key Architectural Highlights
 
-- **Independent Microservices**: NestJS microservices on GCP Cloud Run; each service owns its codebase, database, and scaling posture.
-- **Data Plane Isolation**: Dedicated PostgreSQL databases (`auth_db`, `accounts_db`, etc.). Zero cross-domain joins.
-- **Zero-Trust Identity**: Mandatory password + RFC 6238 TOTP MFA, device fingerprinting, and RBAC guards.
-- **Edge Security & Routing**: Nginx API Gateway directing traffic to domain microservices.
-- **Event-Driven Resilience**: Decoupled async domain event bus for Audit and Notification consumers.
-
----
-
-## 👥 Team BackTrack
-
-| Name | Role | Microservice Ownership |
-|:---|:---|:---|
-| **Inusha Gunasekara** | Team Leader & System Architect | System Architecture & Blueprint |
-| **Kaushalya Wijesiri** | Backend Lead Engineer | **Auth Service** & **Accounts Service** |
-| **Anushka Thisera** | Backend Engineer | Payments Service & Loans Service |
-| **Pushpika Jayanath** | DevOps & Backend Engineer | Audit Service, Notification Service, CI/CD |
+- **Domain Isolation**: Domain-separated microservices and schemas (`auth`, `accounts`, `payments`, `loans`, `audit`, `notifications`).
+- **Data Plane Security**: Dedicated database partitioning via Prisma ORM. Zero cross-domain SQL joins.
+- **Zero-Trust Identity**: Password security with Bcrypt (cost 12), RFC 6238 TOTP MFA, device fingerprinting, and JWT refresh token rotation.
+- **Event-Driven Resilience**: Transactional Outbox Pattern (`OutboxEvent` table) + Pub/Sub EventBus (`AuditService` & `NotificationService` consumers).
+- **Security & Rate Limiting**: Helmet HTTP headers, CORS, request correlation IDs (`x-correlation-id`), sliding window rate limiting, and automated PII scrubbing.
 
 ---
 
@@ -58,19 +44,19 @@
 
 ```
                             ┌──────────────────┐
-                            │   Cloud Armor     │
-                            │   (WAF / DDoS)    │
+                            │   Cloud Armor    │
+                            │   (WAF / DDoS)   │
                             └────────┬─────────┘
                                      │
                             ┌────────▼─────────┐
-                            │  Cloud Load       │
-                            │  Balancer + CDN   │
+                            │  Cloud Load      │
+                            │  Balancer + CDN  │
                             └────────┬─────────┘
                                      │
                    ┌─────────────────┼─────────────────┐
                    │                 │                 │
           ┌────────▼──────┐ ┌───────▼────────┐ ┌───────▼────────┐
-          │  Next.js       │ │  API Gateway    │ │  Static Assets │
+          │  Next.js 16    │ │  API Gateway    │ │  Static Assets │
           │  Frontend      │ │  (Nginx / GCP)  │ │  (Cloud CDN)   │
           └────────────────┘ └───────┬────────┘ └────────────────┘
                                      │
@@ -79,20 +65,18 @@
    ┌────────▼──┐ ┌──────▼────┐ ┌───▼──────┐ ┌──▼───────┐ ┌──▼──────────┐
    │  Auth     │ │ Accounts  │ │ Payments │ │ Loans    │ │ Notification│
    │  Service  │ │ Service   │ │ Service  │ │ Service  │ │ Service     │
-   │ (NestJS)  │ │ (NestJS)  │ │ (NestJS) │ │ (NestJS) │ │ (NestJS)    │
-   │ :4001     │ │ :4002     │ │ :4003    │ │ :4004    │ │ :4005       │
    └─────┬─────┘ └─────┬─────┘ └────┬─────┘ └────┬─────┘ └──────┬──────┘
          │              │            │             │              │
    ┌─────▼─────┐ ┌─────▼─────┐ ┌───▼───────┐ ┌───▼──────┐       │
    │ auth_db   │ │accounts_db│ │payments_db│ │ loans_db │       │
-   │(Cloud SQL)│ │(Cloud SQL)│ │(Cloud SQL)│ │(Cloud SQL│       │
+   │(Cloud SQL)│ │(Cloud SQL)│ │(Cloud SQL)│ │(Cloud SQL)│      │
    └───────────┘ └───────────┘ └───────────┘ └──────────┘       │
                                                                  │
-   ┌─────────────────────────────────────────────────────────────┘
+   ┌────────────────────────────────────────────────────────────┘
    │
    │  ┌──────────────┐      ┌──────────────┐     ┌──────────────┐
-   └─►│   Pub/Sub     │─────►│ Audit Service│────►│  BigQuery    │
-      │  (Events)     │      │  (NestJS)    │     │ (Immutable)  │
+   └─►│   Pub/Sub    │─────►│ Audit Service│────►│  BigQuery    │
+      │  (Events)    │      │  (Consumer)  │     │ (Immutable)  │
       └──────────────┘      └──────────────┘     └──────────────┘
 ```
 
@@ -100,13 +84,12 @@
 
 ## 🧰 Tech Stack
 
-- **Frontend**: Next.js 15 (React 19, TypeScript, TailwindCSS)
-- **Backend Framework**: NestJS 10 (TypeScript)
-- **API Gateway**: Nginx
-- **Databases**: PostgreSQL 16 (per-service databases via Prisma ORM 6)
-- **Authentication**: JWT (HS256 access tokens, DB-tracked refresh token rotation), Bcrypt (cost 12), otplib (RFC 6238 TOTP), qrcode
-- **Containerization & Orchestration**: Docker, Docker Compose
-- **Testing**: Jest, Supertest, Vitest
+- **Frontend & Fullstack Framework**: Next.js 16 (React 19, TypeScript 5, TailwindCSS 4)
+- **Database & ORM**: PostgreSQL 16 with Prisma ORM 5.22
+- **Authentication**: JWT (15-min access, 7-day httpOnly refresh token rotation), Bcryptjs, RFC 6238 TOTP
+- **Security & Headers**: Helmet, CORS, Correlation IDs, Sliding Window Rate Limiter
+- **Testing Suite**: Vitest 2.1, ESLint 9, TypeScript Strict Mode
+- **DevOps & Containers**: Docker, Docker Compose, GitHub Actions CI
 
 ---
 
@@ -114,110 +97,105 @@
 
 ### Prerequisites
 
-- **Node.js**: `v20.x LTS`
-- **Docker & Docker Compose**: `v24+` / `Docker Desktop`
+- **Node.js**: `v20.x LTS` or higher
 - **npm**: `v10+`
+- **Docker & Docker Compose**: (Optional, for running local PostgreSQL & Redis containers)
 
 ### 1. Clone & Environment Setup
 
 ```bash
 git clone https://github.com/inusha-thathsara/Duothan-6-Team-BackTrack-VaultGuard.git
-cd Duothan-6-Team-BackTrack-VaultGuard
+cd Duothan-6-Team-BackTrack-VaultGuard/vaultguard
+cp .env.example .env
 ```
 
-Copy environment files for each service:
+### 2. Install Dependencies
 
 ```bash
-cp services/auth-service/.env.example services/auth-service/.env
-cp services/accounts-service/.env.example services/accounts-service/.env
+npm install
 ```
 
-### 2. Launch Infrastructure with Docker Compose
-
-Spin up PostgreSQL databases (`auth_db`, `accounts_db`), Redis, Nginx API Gateway, and backend microservices:
+### 3. Database Migration & Seeding
 
 ```bash
-docker compose up -d --build
+# Apply Prisma database schema
+npx prisma db push
+
+# Seed demo users, accounts, payees, and active loans
+npx prisma db seed
 ```
+
+### 4. Start Development Server
+
+```bash
+npm run dev
+```
+
+Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
 ---
 
-## 🗄️ Database Setup & Seeding
+## 📡 Complete API Reference
 
-### Seed Auth Service Database (`auth_db`)
+All protected endpoints accept `Authorization: Bearer <jwt_token>` and enforce rate limits.
 
-```bash
-cd services/auth-service
-npm install
-npx prisma db push
-npm run prisma:seed
-```
+### 🔐 Auth & Identity
+- `POST /api/auth/register` — Customer registration matching backup identity records
+- `POST /api/auth/login` — User authentication returning JWT & MFA requirement
+- `POST /api/auth/mfa/verify` — Verify 6-digit TOTP MFA challenge
+- `POST /api/auth/refresh` — Rotate refresh token for access token renewal
+- `POST /api/auth/logout` — Revoke refresh token and end session
 
-### Seed Accounts Service Database (`accounts_db`)
-
-```bash
-cd services/accounts-service
-npm install
-npx prisma db push
-npm run prisma:seed
-```
-
----
-
-## 📡 API Reference
-
-All requests pass through the local API Gateway at `http://localhost`:
-
-### Auth & Identity
-- `POST /api/auth/register` — Customer registration matching backup records
-- `POST /api/auth/login` — Password login (MFA challenge & token issuance)
-- `POST /api/auth/mfa/setup` — Generate TOTP secret, QR code, and backup codes
-- `POST /api/auth/mfa/verify` — Verify 6-digit TOTP code
-- `POST /api/auth/refresh` — Rotate refresh token
-- `POST /api/auth/logout` — Clear session
-- `GET /api/auth/devices` & `DELETE /api/auth/devices/:id` — Manage trusted devices
-- `GET /api/auth/operator/users` — Support Operator user profile search
-
-### Accounts & Balances
-- `GET /api/accounts` — List user bank accounts & balances
-- `GET /api/accounts/:id` — Account detail
+### 🏦 Accounts & Statements
+- `GET /api/accounts` — List customer bank accounts and real-time balances
 - `GET /api/accounts/:id/statements` — Filtered transaction statements (`?from=&to=&page=&limit=`)
 
-### Payments & Transfers (`Member 3`)
-- `POST /api/payments/transfer` — Idempotent fund transfer (`x-request-id` header required)
-- `POST /api/payments/bill-pay` — Idempotent bill payment
-- `GET /api/payments/history` — Transaction history
+### 💸 Payments & Transfers
+- `POST /api/payments/transfer` — Idempotent funds transfer (Requires `x-request-id` header)
+- `POST /api/payments/bill-pay` — Idempotent utility & biller payment
+- `GET /api/payments/history` — Paginated and searchable transaction history
 - `GET /api/payees` & `POST /api/payees` — Manage saved payees
 
-### Loans (`Member 3`)
-- `GET /api/loans` — View active loans & repayment schedules
-- `POST /api/loans/repay` — Loan repayment
+### 📊 Loans & Repayments
+- `GET /api/loans` — View active loans and repayment schedules
+- `POST /api/loans/repay` — Execute loan repayment from checking or savings
+
+### 🛡️ Audit, Health & Admin
+- `GET /api/audit/me` — Personal security activity timeline
+- `GET /api/admin/customers/:id` — Support Operator customer lookup (Audited with `admin.customer_lookup`)
+- `GET /api/admin/dlq` — List failed Dead Letter Queue events
+- `POST /api/admin/dlq/replay` — Replay failed DLQ entry to EventBus
+- `GET /api/health` — Multi-service health monitoring & degraded mode check
 
 ---
 
-## 🧪 Testing
+## 🧪 Testing & Quality Verification
+
+Run the automated test and validation commands:
 
 ```bash
-# Auth Service Tests
-cd services/auth-service
-npx jest
+# 1. Run ESLint code quality check
+npm run lint
 
-# Accounts Service Tests
-cd services/accounts-service
-npx jest
+# 2. Run TypeScript strict type check
+npm run typecheck
+
+# 3. Run full Vitest unit & integration test suites
+npm run test
 ```
 
 ---
 
-## 🔐 Security Controls
+## 🔐 Security & Resilience Controls
 
-1. **Password Protection**: Bcrypt hashing with cost factor 12.
-2. **Stateless JWTs & Refresh Rotation**: Short-lived access tokens (15m) + single-use DB-tracked refresh tokens.
-3. **Cookie Hardening**: `httpOnly`, `SameSite=Strict`, `Secure` in production.
-4. **Device Fingerprinting**: Subnet-level SHA-256 fingerprinting.
-5. **Step-Up Authorization**: High-risk operations require recent MFA verification (< 5m).
-6. **Role-Based Access Control (RBAC)**: Fine-grained `@Roles()` guards for `CUSTOMER` vs `SUPPORT_OPERATOR`.
+1. **Password Security**: Bcrypt hashing with cost factor 12.
+2. **Stateless JWTs & Refresh Rotation**: Short-lived access tokens (15m) + single-use refresh token rotation.
+3. **Idempotency Protection**: `x-request-id` UUID header prevents double-debiting on network retries.
+4. **Step-Up Authorization**: High-risk operations (>$5000) require Step-Up MFA verification.
+5. **Sliding Window Rate Limiter**: 5 req/min (auth), 10 req/min (payments), 60 req/min (general).
+6. **PII Scrubbing & Audit Trails**: Automatic redaction of sensitive fields in JSON logs and immutable `AuditEvent` database logs.
+7. **Degraded Mode Protection**: Read-only fallback when payment gateway or ledger services degrade.
 
 ---
 
-*VaultGuard — Duothan 6.0 | Team BackTrack*
+*VaultGuard — Secure Digital Banking Platform*
