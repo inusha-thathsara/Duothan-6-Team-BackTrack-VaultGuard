@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { transferSchema, billPaySchema, historyQuerySchema } from "@/lib/validation/payment.schema";
-import { loanQuerySchema, repaymentSchema } from "@/lib/validation/loan.schema";
+import { repaymentSchema } from "@/lib/validation/loan.schema";
 
 describe("Payment & Loan Validation Schemas (Member 3)", () => {
   it("should validate valid transfer input", () => {

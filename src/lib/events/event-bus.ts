@@ -1,4 +1,6 @@
 import { EventEmitter } from "events";
+import { auditService } from "@/lib/services/audit/audit.service";
+import { notificationService } from "@/lib/services/notifications/notification.service";
 
 export type EventPayload = {
   eventId: string;
@@ -31,6 +33,14 @@ class EventBus extends EventEmitter {
     super();
     // Allow many subscribers (audit, notifications, etc.)
     this.setMaxListeners(20);
+    
+    // Auto-subscribe core consumers (Audit & Notification)
+    try {
+      auditService.initConsumer();
+      notificationService.initConsumer();
+    } catch {
+      // Deferred if services load after
+    }
   }
 
   static getInstance(): EventBus {
@@ -88,3 +98,4 @@ class EventBus extends EventEmitter {
 }
 
 export const eventBus = EventBus.getInstance();
+
