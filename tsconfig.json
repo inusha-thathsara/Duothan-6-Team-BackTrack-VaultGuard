@@ -25,9 +25,7 @@
   "include": [
     "next-env.d.ts",
     "src/**/*.ts",
-    "src/**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    "src/**/*.tsx"
   ],
-  "exclude": ["node_modules", "services", "prisma"]
+  "exclude": ["node_modules", ".next", "services", "prisma"]
 }

@@ -2,13 +2,13 @@
 
 import React from "react";
 import Link from "next/link";
-import { ShieldCheck, Cloud, Cpu, Lock, CheckCircle2 } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 export const Footer: React.FC = () => {
   return (
     <footer className="w-full border-t border-slate-800/80 bg-slate-950/90 text-slate-400 text-xs py-10 mt-auto backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8 pb-8 border-b border-slate-800/60">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 pb-8 border-b border-slate-800/60">
           
           {/* Col 1: Platform Overview */}
           <div className="space-y-3">
@@ -76,29 +76,6 @@ export const Footer: React.FC = () => {
                 Identity Platform
               </span>
             </div>
-          </div>
-
-          {/* Col 4: Team BackTrack */}
-          <div className="space-y-2">
-            <h4 className="font-semibold text-white uppercase text-[11px] tracking-wider mb-3">
-              Team BackTrack
-            </h4>
-            <p className="text-[11px] text-slate-400">National Inter-University DevOps Combat</p>
-            <p className="text-[10px] text-slate-500 font-semibold">IEEE Student Branch of NSBM</p>
-            <ul className="mt-2 space-y-1 text-[11px] text-slate-300 font-medium">
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Inusha Gunasekara (Leader)
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Kaushalya Wijesiri
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Anushka Thisera
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Pushpika Jayanath
-              </li>
-            </ul>
           </div>
 
         </div>
