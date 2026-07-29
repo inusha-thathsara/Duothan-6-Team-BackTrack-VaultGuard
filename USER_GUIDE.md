@@ -2,19 +2,37 @@
 
 VaultGuard is an enterprise-grade cloud-native banking application built with modern security, resiliency, event-driven architecture, and zero-trust principles.
 
+> [!NOTE]
+> **Phase 2 Localized Simulation Notice:** This Phase 2 submission is a localized simulation of the enterprise production architecture. It allows rapid local prototyping, zero-cost evaluation, and offline testing while preserving 1:1 service boundaries, database schemas, and event contracts for Phase 3 cloud deployment.
+
 ---
 
-## 1. Architecture Overview
+## 1. Architecture Mapping (Local Simulation → Enterprise Production)
 
-- **Core Framework:** Next.js 15 (App Router, Server Actions, API Routes) + TypeScript
-- **Database Layer:** PostgreSQL with Prisma ORM (isolated schema, domain models for Auth, Accounts, Payments, Loans, Audit)
-- **Caching & Rate Limiting:** Redis / Sliding window rate limiter with memory fallback
+To demonstrate how the local Phase 2 environment proves the production design:
+
+| Enterprise Production Component | Local Phase 2 Simulation Implementation | Architecture Rationale |
+|---------------------------------|-----------------------------------------|------------------------|
+| **GCP Cloud Run Microservices** | Next.js 16 App Router API Routes & isolated domain modules (`auth`, `accounts`, `payments`, `loans`, `audit`, `notifications`) | Ensures modular domain isolation so each service can be deployed independently to Cloud Run in Phase 3. |
+| **GCP Cloud SQL (PostgreSQL)** | For Phase 2 rapid prototyping and local evaluation, Cloud SQL is simulated via isolated local PostgreSQL Docker containers and Prisma ORM schemas. | Guarantees identical relational schemas, foreign keys, and indexes for zero-schema-churn cloud migration. |
+| **GCP Cloud KMS & HSM Signing** | Cloud KMS HSM signing is simulated via local cryptographic JWT signing, HMAC token verification, and key derivation in the Auth service. | Proves hardware-level security workflows locally without requiring live GCP credentials. |
+| **GCP Cloud Pub/Sub Event Bus** | Pub/Sub event bus is simulated via local Transactional Outbox Pattern (`OutboxEvent` table) + local in-process `EventBus` Pub/Sub stream (`event-bus.ts` and `outbox-worker.ts`). | Ensures atomic ledger commits with guaranteed async message delivery and retry semantics. |
+| **GCP Cloud Armor WAF & Gateway** | Simulated via custom security middleware (`security.ts`), Helmet HTTP headers, CORS controls, and sliding-window rate limiting (`rate-limiter.ts`). | Protects API endpoints against DDoS, credential stuffing, and injection attacks locally. |
+| **GCP BigQuery Audit Sink** | Simulated via append-only `AuditEvent` database records + structured JSON logger with automated PII scrubbing (`logger.ts`, `audit.service.ts`). | Guarantees immutable, attributable security event records for compliance auditing. |
+
+---
+
+## 2. Core Architecture Overview
+
+- **Core Framework:** Next.js 16 (App Router, Server Actions, API Routes) + TypeScript 5
+- **Database Layer:** PostgreSQL with Prisma ORM (isolated domain models for Auth, Accounts, Payments, Loans, Audit)
+- **Caching & Rate Limiting:** Sliding window rate limiter with local memory fallback
 - **Event-Driven Pipeline:** Transactional Outbox Pattern (`OutboxEvent` table) → Outbox Worker → Pub/Sub EventBus → Consumers (`AuditService`, `NotificationService`)
-- **Security & Resilience:** Helmet HTTP headers, CORS, Correlation ID tracking (`x-correlation-id`), Sliding Window Rate Limiter (FR-21), PII Redaction, Step-Up MFA (FR-11), Idempotency Keys (FR-13), Degraded Read-Only Mode (FR-08).
+- **Security & Resilience:** Helmet HTTP headers, CORS, Correlation ID tracking (`x-correlation-id`), Sliding Window Rate Limiter (FR-21), PII Redaction (NFR-S7), Step-Up MFA (FR-11), Idempotency Keys (FR-13), Degraded Read-Only Mode (FR-08).
 
 ---
 
-## 2. Environment Setup
+## 3. Environment Setup
 
 ### Environment Variables (`.env`)
 ```env
@@ -37,13 +55,13 @@ OUTBOX_BATCH_SIZE=10
 docker-compose up --build -d
 
 # Run Prisma migrations & seed demo data
-npx prisma migrate dev
+npx prisma db push
 npx prisma db seed
 ```
 
 ---
 
-## 3. Complete API Reference
+## 4. Complete API Reference
 
 ### Authentication Header Format
 All protected endpoints require a Bearer token:
@@ -72,7 +90,7 @@ All protected endpoints require a Bearer token:
 
 ---
 
-## 4. Detailed Feature & Security Specs
+## 5. Detailed Feature & Security Specs
 
 ### 🔒 Idempotency & Outbox Pattern (FR-13, FR-14a)
 - Header `x-request-id: <uuid>` prevents double-debiting on network retries.
@@ -97,7 +115,7 @@ All protected endpoints require a Bearer token:
 
 ---
 
-## 5. Verification & Testing
+## 6. Verification & Testing
 
 ### Automated Test Commands
 ```bash
@@ -108,7 +126,7 @@ npm run lint
 npm run typecheck
 
 # Run unit & integration test suites
-npx vitest run
+npm run test
 ```
 
 ### Manual QA Walkthrough
@@ -121,7 +139,7 @@ npx vitest run
 
 ---
 
-## 6. Troubleshooting & Support
+## 7. Troubleshooting & Support
 
 - **Database Connection Error:** Verify PostgreSQL container is healthy (`docker ps` / `pg_isready`).
 - **Prisma Schema Mismatch:** Run `npx prisma generate` followed by `npx prisma db push`.

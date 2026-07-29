@@ -9,11 +9,15 @@
 > **Post-Cyberattack Secure Banking Platform**  
 > *Rebuild the future. Defend the digital world.*
 
+> [!NOTE]
+> **Phase 2 Localized Simulation Notice:** This Phase 2 submission is a localized simulation of the enterprise production architecture. It allows rapid local prototyping, zero-cost evaluation, and offline testing while preserving identical 1:1 service boundaries, database contracts, and event schemas for Phase 3 GCP cloud deployment.
+
 ---
 
 ## 📋 Table of Contents
 
 - [Overview](#overview)
+- [Architecture Mapping (Local Simulation → Enterprise Production)](#architecture-mapping-local-simulation--enterprise-production)
 - [System Architecture](#system-architecture)
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
@@ -22,7 +26,6 @@
 - [Complete API Reference](#complete-api-reference)
 - [Testing & Quality Verification](#testing--quality-verification)
 - [Security & Resilience Controls](#security--resilience-controls)
-- [Repository Structure](#repository-structure)
 
 ---
 
@@ -37,6 +40,21 @@
 - **Zero-Trust Identity**: Password security with Bcrypt (cost 12), RFC 6238 TOTP MFA, device fingerprinting, and JWT refresh token rotation.
 - **Event-Driven Resilience**: Transactional Outbox Pattern (`OutboxEvent` table) + Pub/Sub EventBus (`AuditService` & `NotificationService` consumers).
 - **Security & Rate Limiting**: Helmet HTTP headers, CORS, request correlation IDs (`x-correlation-id`), sliding window rate limiting, and automated PII scrubbing.
+
+---
+
+## 🏛️ Architecture Mapping (Local Simulation → Enterprise Production)
+
+This Phase 2 deliverable is a localized simulation engineered to prove the enterprise design locally:
+
+| Enterprise Production Component | Local Phase 2 Simulation Implementation | Architecture Rationale |
+|---------------------------------|-----------------------------------------|------------------------|
+| **GCP Cloud Run Microservices** | Next.js 16 App Router API Routes & isolated domain modules (`auth`, `accounts`, `payments`, `loans`, `audit`, `notifications`) | Ensures modular domain isolation so each service can be deployed independently to Cloud Run in Phase 3. |
+| **GCP Cloud SQL (PostgreSQL)** | For Phase 2 rapid prototyping and local evaluation, Cloud SQL is simulated via isolated local PostgreSQL Docker containers and Prisma ORM schemas. | Guarantees identical relational schemas, foreign keys, and indexes for zero-schema-churn cloud migration. |
+| **GCP Cloud KMS & HSM Signing** | Cloud KMS HSM signing is simulated via local cryptographic JWT signing, HMAC token verification, and key derivation in the Auth service. | Proves hardware-level security workflows locally without requiring live GCP credentials. |
+| **GCP Cloud Pub/Sub Event Bus** | Pub/Sub event bus is simulated via local Transactional Outbox Pattern (`OutboxEvent` table) + local in-process `EventBus` Pub/Sub stream (`event-bus.ts` and `outbox-worker.ts`). | Ensures atomic ledger commits with guaranteed async message delivery and retry semantics. |
+| **GCP Cloud Armor WAF & Gateway** | Simulated via custom security middleware (`security.ts`), Helmet HTTP headers, CORS controls, and sliding-window rate limiting (`rate-limiter.ts`). | Protects API endpoints against DDoS, credential stuffing, and injection attacks locally. |
+| **GCP BigQuery Audit Sink** | Simulated via append-only `AuditEvent` database records + structured JSON logger with automated PII scrubbing (`logger.ts`, `audit.service.ts`). | Guarantees immutable, attributable security event records for compliance auditing. |
 
 ---
 

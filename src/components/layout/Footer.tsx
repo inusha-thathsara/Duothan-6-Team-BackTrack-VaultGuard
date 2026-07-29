@@ -19,7 +19,7 @@ export const Footer: React.FC = () => {
               Post-cyberattack digital banking rebuild platform engineered with zero-trust architecture, domain isolation, and HSM key management.
             </p>
             <div className="flex items-center gap-2 text-emerald-400 text-[11px] font-mono">
-              <ShieldCheck className="w-4 h-4" /> Cloud KMS HSM Master Key Secured
+              <ShieldCheck className="w-4 h-4" /> HSM Encrypted & Cryptographically Secured
             </div>
           </div>
 
@@ -43,7 +43,7 @@ export const Footer: React.FC = () => {
               </li>
               <li className="flex items-center justify-between">
                 <span className="text-slate-400">Audit Trail Retention</span>
-                <span className="font-mono text-cyan-400">BigQuery Immutable</span>
+                <span className="font-mono text-cyan-400">Immutable Event Log</span>
               </li>
             </ul>
           </div>
@@ -51,26 +51,26 @@ export const Footer: React.FC = () => {
           {/* Col 3: Architecture Stack */}
           <div className="space-y-2">
             <h4 className="font-semibold text-white uppercase text-[11px] tracking-wider mb-3">
-              Google Cloud Platform
+              Core Architecture Stack
             </h4>
             <div className="grid grid-cols-2 gap-1.5 text-[11px]">
               <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Cloud Run Microservices
+                Isolated Microservices
               </span>
               <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Cloud SQL PostgreSQL
+                Encrypted PostgreSQL
               </span>
               <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Memorystore Redis
+                Distributed Cache
               </span>
               <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Pub/Sub Event Bus
+                Transactional Event Bus
               </span>
               <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Cloud Armor WAF
+                Application Firewall
               </span>
               <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Identity Platform
+                Identity Management
               </span>
             </div>
           </div>
