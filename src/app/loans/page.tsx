@@ -7,27 +7,20 @@ import { Footer } from "@/components/layout/Footer";
 import { DegradedBanner } from "@/components/common/DegradedBanner";
 import { ToastContainer } from "@/components/common/ToastContainer";
 import { StepUpMfaModal } from "@/components/common/StepUpMfaModal";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
-  Landmark,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  ArrowRight,
-  ShieldCheck,
-  RefreshCw,
-  X
-} from "lucide-react";
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import { Calendar } from "lucide-react";
 
 export default function LoansPage() {
-  const {
-    loans,
-    repaymentSchedule,
-    repayLoan,
-    isPaymentsDegraded,
-    accounts,
-    primaryAccount,
-    addToast
-  } = useVaultGuard();
+  const { loans, repaymentSchedule, repayLoan, isPaymentsDegraded, accounts, primaryAccount, addToast } =
+    useVaultGuard();
 
   const [isRepayModalOpen, setIsRepayModalOpen] = useState(false);
   const [repayAmount, setRepayAmount] = useState("22000");
@@ -37,195 +30,125 @@ export default function LoansPage() {
 
   const handleExecuteRepay = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isPaymentsDegraded) {
-      addToast({
-        type: "error",
-        title: "Action Blocked (FR-08)",
-        message: "Payments Service is currently degraded. Repayment is suspended.",
-      });
-      return;
-    }
-
+    if (isPaymentsDegraded) { addToast({ type: "error", title: "Action Suspended", message: "Payments in degraded mode." }); return; }
     const amountNum = parseFloat(repayAmount) || 0;
     if (amountNum <= 0) return;
-
     const ok = repayLoan(activeLoan.id, amountNum, fromAccountId);
-    if (ok) {
-      setIsRepayModalOpen(false);
-    }
+    if (ok) setIsRepayModalOpen(false);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#050b14] text-slate-100 selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <DegradedBanner />
       <Navbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Loans & Credit Overview</h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Isolated Loans Microservice (`loans_db`) · Facilities, schedules, & repayments (FR-15, FR-16)
-          </p>
+          <h1 className="text-xl font-bold tracking-tight">Credit &amp; Loans</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Isolated Loans microservice with automated repayment schedules.</p>
         </div>
 
-        {/* HERO CARDS GRID (Matches Wireframe Figure 8) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Main Loan Card */}
-          <div className="lg:col-span-7 glass-panel rounded-3xl p-6 sm:p-8 border border-emerald-500/30 shadow-2xl relative overflow-hidden gradient-dark-card flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  {activeLoan.title}
-                </span>
-                <span className="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 font-mono text-xs font-bold border border-emerald-500/30">
-                  {activeLoan.loanNumber}
-                </span>
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-              <div className="mt-4">
-                <span className="text-xs text-slate-400 block">Outstanding Principal</span>
-                <span className="text-3xl sm:text-5xl font-extrabold font-mono text-white tracking-tight">
+          {/* Main Loan Card */}
+          <Card className="lg:col-span-7 flex flex-col justify-between">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardDescription className="text-xs uppercase tracking-wider">{activeLoan.title}</CardDescription>
+                <Badge variant="secondary" className="font-mono text-[10px]">{activeLoan.loanNumber}</Badge>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-xs text-muted-foreground block">Outstanding Balance</span>
+                <span className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">
                   LKR {activeLoan.outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               </div>
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <span className="text-xs text-slate-400">Next Payment Due:</span>
-                <strong className="text-white block font-mono text-sm">
-                  01 Aug 2026 — LKR {activeLoan.nextPaymentAmount.toLocaleString()}
-                </strong>
+            </CardHeader>
+            <CardContent>
+              <Separator className="mb-4" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-[11px] text-muted-foreground">Next Payment Due:</span>
+                  <strong className="block font-mono text-xs mt-0.5">
+                    01 Aug 2026 — LKR {activeLoan.nextPaymentAmount.toLocaleString()}
+                  </strong>
+                </div>
+                <Button onClick={() => setIsRepayModalOpen(true)} disabled={isPaymentsDegraded || activeLoan.status === "PAID_OFF"} size="sm">
+                  Repay Installment
+                </Button>
               </div>
+            </CardContent>
+          </Card>
 
-              <button
-                onClick={() => setIsRepayModalOpen(true)}
-                disabled={isPaymentsDegraded || activeLoan.status === "PAID_OFF"}
-                className="px-6 py-3 rounded-xl gradient-mint text-slate-950 font-bold text-xs hover:opacity-95 disabled:opacity-50 transition-all shadow-lg mint-glow"
-              >
-                Repay Now (FR-16)
-              </button>
-            </div>
-          </div>
-
-          {/* Payment Schedule Summary Card */}
-          <div className="lg:col-span-5 glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl flex flex-col justify-between">
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Payment Schedule</h3>
-              <div className="space-y-3 font-mono text-xs">
-                {repaymentSchedule.slice(0, 4).map((sch) => (
-                  <div
-                    key={sch.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="text-white">{sch.dueDate}</span>
-                    </div>
-                    <span className="font-bold text-slate-200">LKR {sch.amount.toLocaleString()}</span>
-                    <span className={`px-2 py-0.5 text-[10px] rounded font-sans font-semibold ${
-                      sch.status === "PAID"
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                    }`}>
-                      {sch.status}
-                    </span>
+          {/* Schedule Card */}
+          <Card className="lg:col-span-5">
+            <CardHeader>
+              <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Installment Schedule</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {repaymentSchedule.slice(0, 4).map((sch) => (
+                <div key={sch.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border font-mono text-xs">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">{sch.dueDate}</span>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 text-center">
-              <span className="text-[11px] text-slate-400">
-                Loan Interest Rate: <strong className="text-emerald-400 font-mono">{activeLoan.interestRate}% p.a.</strong>
-              </span>
-            </div>
-          </div>
-
+                  <span className="font-semibold">LKR {sch.amount.toLocaleString()}</span>
+                  <Badge variant={sch.status === "PAID" ? "secondary" : "outline"} className="text-[10px] font-sans">
+                    {sch.status}
+                  </Badge>
+                </div>
+              ))}
+              <p className="text-center text-[11px] text-muted-foreground pt-1 border-t border-border">
+                Interest Rate: <strong className="font-mono text-foreground">{activeLoan.interestRate}% p.a.</strong>
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* LOAN HEALTH & TERM PROGRESS (Matches Wireframe Figure 8) */}
-        <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl space-y-6">
-          <h3 className="text-lg font-bold text-white">Loan Health & Term Progress</h3>
-          <p className="text-xs text-slate-400">
-            On track — no overdue installments since post-disaster account restoration. Repayments emit events to Pub/Sub outbox without coupling to Accounts writes.
-          </p>
-
-          <div>
-            <div className="flex justify-between text-xs font-semibold mb-2">
-              <span className="text-slate-400">Term Progress</span>
-              <span className="text-emerald-400 font-mono">
-                {activeLoan.completedInstallments} of {activeLoan.termMonths} Installments Completed
-              </span>
+        {/* Progress */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Repayment Progress</CardTitle>
+            <CardDescription>Automated outbox events notify audit services on repayment completion.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-between text-xs font-medium mb-2">
+              <span className="text-muted-foreground">Completed Installments</span>
+              <span className="font-mono">{activeLoan.completedInstallments} of {activeLoan.termMonths} months</span>
             </div>
-
-            <div className="w-full h-3 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
-              <div
-                className="h-full gradient-mint rounded-full transition-all duration-500"
-                style={{ width: `${(activeLoan.completedInstallments / activeLoan.termMonths) * 100}%` }}
-              />
+            <div className="w-full h-2 rounded-full bg-muted border border-border overflow-hidden">
+              <div className="h-full bg-foreground/40 rounded-full transition-all duration-300"
+                style={{ width: `${(activeLoan.completedInstallments / activeLoan.termMonths) * 100}%` }} />
             </div>
-          </div>
-        </div>
-
+          </CardContent>
+        </Card>
       </main>
 
-      {/* Loan Repayment Modal (FR-16) */}
-      {isRepayModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="relative max-w-md w-full glass-panel rounded-2xl p-6 sm:p-8 border border-slate-700 shadow-2xl">
-            <button
-              onClick={() => setIsRepayModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <h3 className="text-xl font-bold text-white">Repay Loan (FR-16)</h3>
-            <p className="text-xs text-slate-400 mt-1">Initiate repayment for Personal Loan LN-20941</p>
-
-            <form onSubmit={handleExecuteRepay} className="mt-6 space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                  Deduct From Account
-                </label>
-                <select
-                  value={fromAccountId}
-                  onChange={(e) => setFromAccountId(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:border-emerald-400 focus:outline-none font-mono"
-                >
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.type} ({acc.accountNumber}) — LKR {acc.balance.toLocaleString()}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                  Repayment Amount (LKR)
-                </label>
-                <input
-                  type="number"
-                  required
-                  value={repayAmount}
-                  onChange={(e) => setRepayAmount(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xl font-bold focus:border-emerald-400 focus:outline-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3.5 px-4 rounded-xl gradient-mint text-slate-950 font-bold text-sm hover:opacity-95 transition-all shadow-lg"
-              >
-                Confirm Loan Repayment
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Repay Dialog */}
+      <Dialog open={isRepayModalOpen} onOpenChange={setIsRepayModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Repay Loan Installment</DialogTitle>
+            <DialogDescription>Facility: Personal Loan LN-20941</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleExecuteRepay} className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider">Source Account</Label>
+              <select value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-xs focus:border-ring focus:outline-none font-mono">
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>{acc.type} ({acc.accountNumber}) — LKR {acc.balance.toLocaleString()}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider">Repayment Amount (LKR)</Label>
+              <Input type="number" required value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} className="font-mono text-lg font-bold" />
+            </div>
+            <Button type="submit" className="w-full">Confirm Repayment</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Footer />
       <StepUpMfaModal />

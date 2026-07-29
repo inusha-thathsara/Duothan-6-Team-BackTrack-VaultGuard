@@ -24,3 +24,4 @@ export type PaginatedResult<T = unknown> = {
   limit: number;
   totalPages: number;
 };
+

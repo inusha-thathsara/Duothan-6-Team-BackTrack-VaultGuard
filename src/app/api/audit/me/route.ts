@@ -37,3 +37,4 @@ export async function GET(req: NextRequest) {
     return applySecurityHeaders(response, correlationId);
   }
 }
+

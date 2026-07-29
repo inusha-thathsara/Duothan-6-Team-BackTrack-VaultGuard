@@ -9,348 +9,238 @@ import { DegradedBanner } from "@/components/common/DegradedBanner";
 import { ToastContainer } from "@/components/common/ToastContainer";
 import { StepUpMfaModal } from "@/components/common/StepUpMfaModal";
 import { StatementModal } from "@/components/common/StatementModal";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
-  Wallet,
-  Eye,
-  EyeOff,
-  Send,
-  CreditCard,
-  Landmark,
-  ShieldCheck,
-  Download,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Search,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  FileText,
-  SlidersHorizontal,
-  ChevronRight
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Wallet, Eye, EyeOff, Send, CreditCard, Landmark, ShieldCheck,
+  Download, ArrowUpRight, ArrowDownLeft, FileText, ChevronRight,
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const {
-    user,
-    accounts,
-    primaryAccount,
-    transactions,
-    isPaymentsDegraded,
-    openStatementModal,
-    addToast
-  } = useVaultGuard();
+  const { user, accounts, primaryAccount, transactions, isPaymentsDegraded, openStatementModal } =
+    useVaultGuard();
 
   const [showBalance, setShowBalance] = useState(true);
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
 
-  const totalBalance = accounts.reduce((acc, a) => acc + a.balance, 0);
-
   return (
-    <div className="min-h-screen flex flex-col bg-[#050b14] text-slate-100 selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <DegradedBanner />
       <Navbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        
-        {/* Top Welcome & System Status Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-              Good evening, <span className="gradient-text">{user?.fullName || "Alex"}</span>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+              Welcome back, {user?.fullName || "Customer"}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Restored zero-trust banking session · ID: <span className="font-mono text-emerald-400">{user?.nationalId}</span>
+            <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+              Account ID: {user?.nationalId || "NAT-99401"} · Zero-Trust Session Active
             </p>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={openStatementModal}
-              className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-xs font-semibold text-slate-200 transition-all shadow-sm"
-            >
-              <Download className="w-4 h-4 text-emerald-400" />
-              <span>Download Statement (FR-07)</span>
-            </button>
-          </div>
+          <Button variant="outline" size="sm" onClick={openStatementModal}>
+            <Download className="w-3.5 h-3.5" />
+            Statement
+          </Button>
         </div>
 
-        {/* HERO CARDS & QUICK ACTIONS (Matches Figure 5 from Wireframes) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Main Total Available Balance Card */}
-          <div className="lg:col-span-7 glass-panel rounded-3xl p-6 sm:p-8 border border-emerald-500/30 shadow-2xl relative overflow-hidden gradient-dark-card">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Balance + Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Available Balance</span>
-              <button
-                onClick={() => setShowBalance(!showBalance)}
-                className="text-slate-400 hover:text-emerald-400 transition-colors p-1 rounded-lg hover:bg-slate-800"
-              >
-                {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-
-            <div className="my-2">
-              <span className="text-3xl sm:text-5xl font-extrabold font-mono text-white tracking-tight">
+          {/* Balance Card */}
+          <Card className="lg:col-span-7">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardDescription className="text-xs uppercase tracking-wider">Total Available Balance</CardDescription>
+                <Button variant="ghost" size="icon-xs" onClick={() => setShowBalance(!showBalance)}>
+                  {showBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </Button>
+              </div>
+              <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight pt-1">
                 {showBalance
                   ? `LKR ${primaryAccount?.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                   : "LKR ••••••••"}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-800/80 text-xs text-slate-400">
-              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono font-semibold">
-                Primary
-              </span>
-              <span>{primaryAccount?.accountNumber}</span>
-              <span className="mx-2">•</span>
-              <span className="text-emerald-400 font-medium">Isolated Cloud SQL (`accounts_db`)</span>
-            </div>
-
-            {/* Quick Action Buttons inside Card */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6">
-              <Link
-                href="/transfer"
-                className={`py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-md ${
-                  isPaymentsDegraded
-                    ? "bg-slate-800 text-slate-500 cursor-not-allowed opacity-60"
-                    : "gradient-mint text-slate-950 hover:opacity-95 mint-glow"
-                }`}
-              >
-                <Send className="w-4 h-4" /> Transfer
-              </Link>
-              <Link
-                href="/bill-pay"
-                className={`py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white transition-all ${
-                  isPaymentsDegraded ? "opacity-60" : ""
-                }`}
-              >
-                <CreditCard className="w-4 h-4 text-emerald-400" /> Pay Bill
-              </Link>
-              <Link
-                href="/loans"
-                className="col-span-2 sm:col-span-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white transition-all"
-              >
-                <Landmark className="w-4 h-4 text-cyan-400" /> View Loans
-              </Link>
-            </div>
-          </div>
-
-          {/* Quick Shortcuts & Security Widget Panel */}
-          <div className="lg:col-span-5 flex flex-col justify-between gap-4">
-            
-            <div className="glass-panel p-6 rounded-3xl border border-slate-800">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Quick Shortcuts</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <Link
-                  href="/transfer"
-                  className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 transition-all flex items-center gap-3 group"
-                >
-                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 group-hover:scale-105 transition-transform">
-                    <Send className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-bold text-white">Send Money</span>
-                    <span className="text-[10px] text-slate-400">Domestic transfer</span>
-                  </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Badge variant="secondary" className="font-mono text-[10px]">Primary Checking</Badge>
+                <span>{primaryAccount?.accountNumber}</span>
+                <span>·</span>
+                <span>Domain Isolated</span>
+              </div>
+              <Separator />
+              <div className="grid grid-cols-3 gap-2">
+                <Link href="/transfer"
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-lg border text-xs font-medium h-7 px-2.5 transition-colors ${
+                    isPaymentsDegraded ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/80'
+                  }`}>
+                  <Send className="w-3 h-3" /> Transfer
                 </Link>
-
-                <Link
-                  href="/history"
-                  className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 transition-all flex items-center gap-3 group"
-                >
-                  <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 group-hover:scale-105 transition-transform">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-bold text-white">Statements</span>
-                    <span className="text-[10px] text-slate-400">Export history</span>
-                  </div>
+                <Link href="/bill-pay"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background text-foreground hover:bg-muted text-xs font-medium h-7 px-2.5 transition-colors">
+                  <CreditCard className="w-3 h-3" /> Pay Bill
                 </Link>
-
-                <Link
-                  href="/loans"
-                  className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 transition-all flex items-center gap-3 group"
-                >
-                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 group-hover:scale-105 transition-transform">
-                    <Landmark className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-bold text-white">Credit & Loans</span>
-                    <span className="text-[10px] text-slate-400">LN-20941 Active</span>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/security"
-                  className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 transition-all flex items-center gap-3 group"
-                >
-                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 group-hover:scale-105 transition-transform">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-bold text-white">Security</span>
-                    <span className="text-[10px] text-slate-400">Trusted devices</span>
-                  </div>
+                <Link href="/loans"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background text-foreground hover:bg-muted text-xs font-medium h-7 px-2.5 transition-colors">
+                  <Landmark className="w-3 h-3" /> Loans
                 </Link>
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Microservice Degraded Status Info Badge */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+          {/* Quick Nav */}
+          <div className="lg:col-span-5 flex flex-col gap-3">
+            <Card className="flex-1">
+              <CardHeader>
+                <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Quick Navigation</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { href: "/transfer", icon: Send, label: "Send Wire", sub: "Domestic transfer" },
+                    { href: "/history", icon: FileText, label: "Ledger", sub: "Export logs" },
+                    { href: "/loans", icon: Landmark, label: "Credit", sub: "Loan LN-20941" },
+                    { href: "/security", icon: ShieldCheck, label: "Security", sub: "MFA & Passkeys" },
+                  ].map(({ href, icon: Icon, label, sub }) => (
+                    <Link key={href} href={href}
+                      className="p-3 rounded-lg bg-muted/50 hover:bg-muted border border-border transition-colors flex items-center gap-2.5">
+                      <Icon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                      <div>
+                        <span className="block text-xs font-semibold">{label}</span>
+                        <span className="text-[10px] text-muted-foreground">{sub}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="px-4 py-3 rounded-xl bg-card border border-border flex items-center justify-between text-xs ring-1 ring-border">
               <div className="flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${isPaymentsDegraded ? "bg-amber-400" : "bg-emerald-400"}`} />
-                <span className="text-slate-300">
-                  Payments Mode: <strong className={isPaymentsDegraded ? "text-amber-400" : "text-emerald-400"}>
-                    {isPaymentsDegraded ? "Degraded (Read-Only)" : "Fully Operational"}
-                  </strong>
+                <span className={`w-1.5 h-1.5 rounded-full ${isPaymentsDegraded ? "bg-amber-400 animate-pulse" : "bg-foreground/40"}`} />
+                <span className="text-muted-foreground">
+                  Payments: <strong className={isPaymentsDegraded ? "text-amber-400" : "text-foreground"}>{isPaymentsDegraded ? "Degraded" : "Operational"}</strong>
                 </span>
               </div>
-              <Link href="/status" className="text-xs text-emerald-400 font-semibold hover:underline">
-                View Status →
+              <Link href="/status" className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Status →</Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Accounts */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold">Banking Accounts</h2>
+            <span className="text-xs text-muted-foreground">3 Domain-Isolated Accounts</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {accounts.map((acc) => (
+              <Card key={acc.id}>
+                <CardContent className="pt-5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{acc.type}</span>
+                    <Badge variant="secondary" className="text-[10px] font-mono">{acc.status}</Badge>
+                  </div>
+                  <div className="font-mono text-xs text-muted-foreground">{acc.accountNumber}</div>
+                  <div className="text-xl font-bold font-mono mt-2">
+                    {showBalance ? `LKR ${acc.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "LKR ••••••"}
+                  </div>
+                  <Separator className="my-3" />
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Limit: LKR {acc.dailyLimit.toLocaleString()}</span>
+                    <Link href="/history" className="hover:text-foreground underline-offset-4 hover:underline">Activity</Link>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent Transactions */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Recent Transactions</CardTitle>
+                <CardDescription>Idempotent transaction outbox ledger</CardDescription>
+              </div>
+              <Link href="/history" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 underline-offset-4 hover:underline">
+                Full History <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-
-          </div>
-
-        </div>
-
-        {/* ACCOUNTS LIST (FR-06) */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white">Your Bank Accounts (FR-06)</h2>
-            <span className="text-xs text-slate-400">3 Isolated Balances</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {accounts.map((acc) => (
-              <div
-                key={acc.id}
-                className="glass-panel p-6 rounded-2xl border border-slate-800 hover:border-emerald-500/40 transition-all"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{acc.type}</span>
-                  <span className="px-2 py-0.5 text-[10px] rounded bg-emerald-500/10 text-emerald-400 font-mono border border-emerald-500/20">
-                    {acc.status}
-                  </span>
-                </div>
-                <div className="font-mono text-lg font-bold text-white mt-1">{acc.accountNumber}</div>
-                <div className="text-2xl font-extrabold text-white mt-3 font-mono">
-                  {showBalance ? `LKR ${acc.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "LKR ••••••"}
-                </div>
-                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Daily Limit: LKR {acc.dailyLimit.toLocaleString()}</span>
-                  <Link href="/history" className="text-emerald-400 font-medium hover:underline">
-                    History
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* RECENT ACTIVITY FEED (Matches Figure 5 & FR-14) */}
-        <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
-            <div>
-              <h2 className="text-lg font-bold text-white">Recent Activity Feed</h2>
-              <p className="text-xs text-slate-400">Idempotent transaction ledger logs (FR-14)</p>
-            </div>
-            <Link
-              href="/history"
-              className="text-xs font-semibold text-emerald-400 hover:underline flex items-center gap-1"
-            >
-              View Full History <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="divide-y divide-slate-800/60 my-2">
-            {transactions.slice(0, 5).map((tx) => (
-              <div
-                key={tx.id}
-                onClick={() => setSelectedTx(tx)}
-                className="py-4 flex items-center justify-between gap-4 hover:bg-slate-900/40 px-2 rounded-xl cursor-pointer transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-xl ${
-                    tx.category === "Income"
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "bg-slate-800 text-slate-300"
-                  }`}>
-                    {tx.category === "Income" ? (
-                      <ArrowDownLeft className="w-5 h-5" />
-                    ) : (
-                      <ArrowUpRight className="w-5 h-5" />
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-white">{tx.description}</h4>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                      <span>{tx.date.substring(0, 10)}</span>
-                      <span>•</span>
-                      <span className="font-mono text-[11px] text-cyan-400">{tx.requestId}</span>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y divide-border">
+              {transactions.slice(0, 5).map((tx) => (
+                <div key={tx.id} onClick={() => setSelectedTx(tx)}
+                  className="py-3 flex items-center justify-between gap-4 hover:bg-muted/50 px-2 rounded-lg cursor-pointer transition-colors -mx-2">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${tx.category === "Income" ? "bg-muted text-foreground" : "bg-muted/50 text-muted-foreground border border-border"}`}>
+                      {tx.category === "Income" ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-semibold">{tx.description}</h3>
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5 font-mono">
+                        <span>{tx.date.substring(0, 10)}</span>
+                        <span>·</span>
+                        <span>{tx.requestId}</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="text-right">
+                    <span className="text-xs font-bold font-mono block">
+                      {tx.category === "Income" ? "+" : "-"} LKR {tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                    <Badge variant={tx.status === "COMPLETED" ? "secondary" : "outline"} className="text-[10px] mt-0.5">
+                      {tx.status}
+                    </Badge>
+                  </div>
                 </div>
-
-                <div className="text-right">
-                  <span className={`text-sm font-bold block ${
-                    tx.category === "Income" ? "text-emerald-400" : "text-white"
-                  }`}>
-                    {tx.category === "Income" ? "+" : "-"} LKR {tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </span>
-                  <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded mt-1 ${
-                    tx.status === "COMPLETED"
-                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {tx.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
       </main>
 
-      {/* Transaction Detail Drawer Modal */}
-      {selectedTx && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="relative max-w-md w-full glass-panel rounded-2xl p-6 border border-slate-700 shadow-2xl">
-            <button
-              onClick={() => setSelectedTx(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
-            >
-              ✕
-            </button>
-            <h3 className="text-lg font-bold text-white mb-2">Transaction Detail</h3>
-            <div className="space-y-3 text-xs text-slate-300">
-              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 font-mono">
-                <span className="text-slate-400 block text-[10px]">Idempotent Request ID (FR-13)</span>
-                <strong className="text-cyan-400 text-sm">{selectedTx.requestId}</strong>
+      {/* Transaction Detail Dialog */}
+      <Dialog open={!!selectedTx} onOpenChange={(open) => !open && setSelectedTx(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transaction Details</DialogTitle>
+          </DialogHeader>
+          {selectedTx && (
+            <div className="space-y-2.5 text-xs text-muted-foreground">
+              <div className="p-3 bg-muted rounded-lg border border-border font-mono">
+                <span className="text-[10px] uppercase tracking-wider block mb-0.5">Idempotency Request ID</span>
+                <strong className="text-foreground text-xs">{selectedTx.requestId}</strong>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-800">
-                <span className="text-slate-400">Description</span>
-                <span className="font-semibold text-white">{selectedTx.description}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-800">
-                <span className="text-slate-400">Payee / Account</span>
-                <span className="text-white">{selectedTx.payeeName || selectedTx.accountNumber}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-800">
-                <span className="text-slate-400">Amount</span>
-                <span className="font-bold text-emerald-400">LKR {selectedTx.amount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-800">
-                <span className="text-slate-400">Saga Status</span>
-                <span className="font-mono text-emerald-300">{selectedTx.sagaStatus}</span>
-              </div>
+              {[
+                ["Description", selectedTx.description],
+                ["Recipient / Account", selectedTx.payeeName || selectedTx.accountNumber],
+                ["Amount", `LKR ${selectedTx.amount.toLocaleString()}`],
+                ["Saga Ledger State", selectedTx.sagaStatus],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between py-1.5 border-b border-border">
+                  <span>{label}</span>
+                  <span className="font-medium text-foreground font-mono">{value}</span>
+                </div>
+              ))}
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Footer />
       <StepUpMfaModal />

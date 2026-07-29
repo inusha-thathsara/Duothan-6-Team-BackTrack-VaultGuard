@@ -12,3 +12,4 @@ export const repaymentSchema = z.object({
 
 export type LoanQuery = z.infer<typeof loanQuerySchema>;
 export type RepaymentInput = z.infer<typeof repaymentSchema>;
+

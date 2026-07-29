@@ -26,3 +26,4 @@ export const mfaVerifySchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type MfaVerifyInput = z.infer<typeof mfaVerifySchema>;
+

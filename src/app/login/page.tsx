@@ -7,126 +7,119 @@ import { useVaultGuard } from "@/context/VaultGuardContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ToastContainer } from "@/components/common/ToastContainer";
-import { Shield, Lock, ShieldCheck, Key, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Shield, Lock, CheckCircle2, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, addToast } = useVaultGuard();
+  const { login } = useVaultGuard();
   const [email, setEmail] = useState("alex.perera@vaultguard.bank");
-  const [password, setPassword] = useState("••••••••••••");
+  const [password, setPassword] = useState("securepass");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
     setTimeout(async () => {
       const ok = await login(email, password);
       setIsLoading(false);
-      if (ok) {
-        router.push("/mfa");
-      }
-    }, 600);
+      if (ok) router.push("/mfa");
+    }, 500);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#050b14] text-slate-100 selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Navbar />
 
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 gap-0 glass-panel rounded-3xl border border-slate-800 shadow-2xl overflow-hidden my-8">
-          
-          {/* Left Dark Brand Panel (Wireframe Figure 3) */}
-          <div className="md:col-span-5 bg-gradient-to-br from-slate-900 via-slate-950 to-[#071325] p-8 sm:p-10 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800">
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
+        <div className="max-w-3xl w-full grid grid-cols-1 md:grid-cols-12 overflow-hidden my-8 rounded-xl ring-1 ring-border">
+
+          {/* Left Brand Panel */}
+          <div className="md:col-span-5 bg-muted/40 p-6 sm:p-8 flex flex-col justify-between border-b md:border-b-0 md:border-r border-border">
             <div>
-              <div className="w-12 h-12 rounded-2xl gradient-mint flex items-center justify-center text-slate-950 font-bold mb-6 mint-glow">
-                <Shield className="w-7 h-7 stroke-[2.5]" />
+              <div className="w-10 h-10 rounded-lg bg-muted border border-border flex items-center justify-center text-foreground mb-5">
+                <Shield className="w-5 h-5" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Welcome back</h2>
-              <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed">
-                Sign in to restore your secure banking session on top of restored customer backups.
+              <h2 className="text-xl font-bold text-foreground tracking-tight">Sign In</h2>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                Access your zero-trust digital banking dashboard.
               </p>
             </div>
 
-            <div className="space-y-4 my-8">
-              <div className="flex items-center gap-3 text-xs text-slate-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Zero-Trust Identity Verification</span>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-slate-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Hardware HSM Key Encryption</span>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-slate-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Cloud Armor WAF Rate Limiting</span>
-              </div>
+            <div className="space-y-2.5 my-6">
+              {[
+                "Zero-Trust Session Sign-In",
+                "HSM Hardware Key Encryption",
+                "Step-Up Challenge Security",
+              ].map((feature) => (
+                <div key={feature} className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-foreground" />
+                  <span>{feature}</span>
+                </div>
+              ))}
             </div>
 
-            <div className="pt-6 border-t border-slate-800 text-[11px] text-slate-500">
-              Post-Attack Rebuild · VaultGuard Security Fabric
+            <div className="pt-4 border-t border-border text-[11px] text-muted-foreground font-mono">
+              VaultGuard Identity Gateway v1.0
             </div>
           </div>
 
-          {/* Right Login Form Panel */}
-          <div className="md:col-span-7 p-8 sm:p-10 bg-slate-950/80 flex flex-col justify-center">
-            <div className="mb-6">
-              <h3 className="text-xl font-bold text-white">Secure Sign In</h3>
-              <p className="text-xs text-slate-400 mt-1">Enter your Customer ID or Email address</p>
+          {/* Right Form Panel */}
+          <div className="md:col-span-7 p-6 sm:p-8 bg-card flex flex-col justify-center">
+            <div className="mb-5">
+              <h3 className="text-base font-semibold text-foreground">Enter Credentials</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Use your Customer ID or Email</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs uppercase tracking-wider">
                   Customer ID or Email
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="email"
                   type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="alex.perera@vaultguard.bank"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 focus:outline-none transition-all"
                 />
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-xs uppercase tracking-wider">
                     Password
-                  </label>
-                  <Link href="/enroll" className="text-xs text-emerald-400 hover:underline">
-                    First-Time Re-Enrollment?
+                  </Label>
+                  <Link href="/enroll" className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">
+                    Re-Enroll?
                   </Link>
                 </div>
-                <input
+                <Input
+                  id="password"
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 focus:outline-none transition-all"
                 />
               </div>
 
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-3.5 px-4 rounded-xl gradient-mint text-slate-950 font-bold text-sm hover:opacity-95 disabled:opacity-50 transition-all shadow-lg flex items-center justify-center gap-2"
-                >
-                  {isLoading ? "Authenticating Session..." : "Continue to MFA Challenge"}
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
+              <Button type="submit" disabled={isLoading} className="w-full mt-2">
+                {isLoading ? "Authenticating..." : "Continue to MFA Challenge"}
+                <ArrowRight className="w-4 h-4" />
+              </Button>
 
-              {/* Security Badges Footer */}
-              <div className="pt-6 mt-6 border-t border-slate-800 text-center text-[11px] text-slate-500 flex items-center justify-center gap-2">
-                <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Protected by Identity Platform · TLS 1.3 · Cloud Armor</span>
-              </div>
+              <Separator />
+              <p className="text-[11px] text-muted-foreground text-center flex items-center justify-center gap-1.5">
+                <Lock className="w-3 h-3" />
+                Protected by TLS 1.3 &amp; Cloud Armor
+              </p>
             </form>
           </div>
-
         </div>
       </main>
 

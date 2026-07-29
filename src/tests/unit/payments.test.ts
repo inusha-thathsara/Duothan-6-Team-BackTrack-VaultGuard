@@ -64,3 +64,4 @@ describe("Payment & Loan Validation Schemas (Member 3)", () => {
     expect(parsed.amount).toBe(500);
   });
 });
+

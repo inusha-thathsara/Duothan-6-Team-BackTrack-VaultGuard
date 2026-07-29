@@ -2,93 +2,87 @@
 
 import React from "react";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Server, Lock } from "lucide-react";
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="w-full border-t border-slate-800/80 bg-slate-950/90 text-slate-400 text-xs py-10 mt-auto backdrop-blur-xl">
+    <footer className="w-full border-t border-border bg-background text-muted-foreground text-xs py-8 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 pb-8 border-b border-slate-800/60">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8 pb-6 border-b border-border/60">
           
-          {/* Col 1: Platform Overview */}
-          <div className="space-y-3">
+          {/* Brand Col */}
+          <div className="space-y-2.5">
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-white tracking-wider">VAULTGUARD</span>
+              <span className="text-sm font-bold text-foreground tracking-tight">VaultGuard</span>
+              <span className="text-[10px] font-mono text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-primary/10">v1.0</span>
             </div>
-            <p className="text-slate-400 leading-relaxed text-[11px]">
-              Post-cyberattack digital banking rebuild platform engineered with zero-trust architecture, domain isolation, and HSM key management.
+            <p className="text-muted-foreground text-[11px] leading-relaxed">
+              Zero-trust digital banking platform with domain isolation and hardware key security.
             </p>
-            <div className="flex items-center gap-2 text-emerald-400 text-[11px] font-mono">
-              <ShieldCheck className="w-4 h-4" /> HSM Encrypted & Cryptographically Secured
+            <div className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>SOC2 Type II Compliant</span>
             </div>
           </div>
 
-          {/* Col 2: Microservice SLA Metrics */}
+          {/* Platform Links */}
           <div className="space-y-2">
-            <h4 className="font-semibold text-white uppercase text-[11px] tracking-wider mb-3">
-              Resilience & SLAs
+            <h4 className="font-semibold text-foreground uppercase text-[10px] tracking-wider">
+              Banking Services
             </h4>
-            <ul className="space-y-2 text-[11px]">
-              <li className="flex items-center justify-between border-b border-slate-800/40 pb-1">
-                <span className="text-slate-400">RPO Target</span>
-                <span className="font-mono text-emerald-400">≤ 15 minutes</span>
+            <ul className="space-y-1.5 text-[11px]">
+              <li><Link href="/dashboard" className="hover:text-foreground transition-colors">Customer Dashboard</Link></li>
+              <li><Link href="/transfer" className="hover:text-foreground transition-colors">Instant Wire Transfer</Link></li>
+              <li><Link href="/bill-pay" className="hover:text-foreground transition-colors">Bill Payments</Link></li>
+              <li><Link href="/loans" className="hover:text-foreground transition-colors">Credit Facilities</Link></li>
+            </ul>
+          </div>
+
+          {/* SLAs & Metrics */}
+          <div className="space-y-2">
+            <h4 className="font-semibold text-foreground uppercase text-[10px] tracking-wider">
+              Service Level Objectives
+            </h4>
+            <ul className="space-y-1 text-[11px]">
+              <li className="flex justify-between text-muted-foreground">
+                <span>RPO Target</span>
+                <span className="font-mono text-muted-foreground">≤ 15m</span>
               </li>
-              <li className="flex items-center justify-between border-b border-slate-800/40 pb-1">
-                <span className="text-slate-400">RTO Regional Failover</span>
-                <span className="font-mono text-emerald-400">≤ 4 hours</span>
+              <li className="flex justify-between text-muted-foreground">
+                <span>Regional RTO</span>
+                <span className="font-mono text-muted-foreground">≤ 4h</span>
               </li>
-              <li className="flex items-center justify-between border-b border-slate-800/40 pb-1">
-                <span className="text-slate-400">Read Path p95 Latency</span>
-                <span className="font-mono text-emerald-400">&lt; 500 ms</span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-slate-400">Audit Trail Retention</span>
-                <span className="font-mono text-cyan-400">Immutable Event Log</span>
+              <li className="flex justify-between text-muted-foreground">
+                <span>Read Latency</span>
+                <span className="font-mono text-muted-foreground">&lt; 50ms</span>
               </li>
             </ul>
           </div>
 
-          {/* Col 3: Architecture Stack */}
+          {/* Architecture */}
           <div className="space-y-2">
-            <h4 className="font-semibold text-white uppercase text-[11px] tracking-wider mb-3">
-              Core Architecture Stack
+            <h4 className="font-semibold text-foreground uppercase text-[10px] tracking-wider">
+              Security Infrastructure
             </h4>
-            <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-              <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Isolated Microservices
-              </span>
-              <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Encrypted PostgreSQL
-              </span>
-              <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Distributed Cache
-              </span>
-              <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Transactional Event Bus
-              </span>
-              <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Application Firewall
-              </span>
-              <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Identity Management
-              </span>
+            <div className="flex flex-wrap gap-1 text-[10px]">
+              <span className="px-2 py-0.5 rounded bg-muted/50 border border-border text-foreground/80">Isolated Microservices</span>
+              <span className="px-2 py-0.5 rounded bg-muted/50 border border-border text-foreground/80">KMS Encryption</span>
+              <span className="px-2 py-0.5 rounded bg-muted/50 border border-border text-foreground/80">Step-Up Auth</span>
+              <span className="px-2 py-0.5 rounded bg-muted/50 border border-border text-foreground/80">Immutable Audit Bus</span>
             </div>
           </div>
 
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
-          <p>© 2065 VaultGuard Rebuild Project. All rights reserved.</p>
+          <p>© 2026 VaultGuard Digital Banking Systems. All rights reserved.</p>
           <div className="flex items-center gap-4">
-            <Link href="/status" className="hover:text-emerald-400 transition-colors">
-              Microservice Status Page
-            </Link>
-            <Link href="/security" className="hover:text-emerald-400 transition-colors">
-              Zero-Trust Audit Log
-            </Link>
+            <Link href="/status" className="hover:text-muted-foreground transition-colors">Infrastructure Status</Link>
+            <Link href="/security" className="hover:text-muted-foreground transition-colors">Security Controls</Link>
           </div>
         </div>
       </div>
     </footer>
   );
 };
+

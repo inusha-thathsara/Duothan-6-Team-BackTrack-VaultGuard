@@ -6,7 +6,10 @@ import { useVaultGuard } from "@/context/VaultGuardContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ToastContainer } from "@/components/common/ToastContainer";
-import { ShieldCheck, Lock, Smartphone, RefreshCw, Key } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { ShieldCheck, Smartphone, RefreshCw, Key } from "lucide-react";
 
 export default function MfaPage() {
   const router = useRouter();
@@ -16,9 +19,7 @@ export default function MfaPage() {
   const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimer((t) => (t > 0 ? t - 1 : 60));
-    }, 1000);
+    const interval = setInterval(() => setTimer((t) => (t > 0 ? t - 1 : 60)), 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -27,103 +28,79 @@ export default function MfaPage() {
     const newCode = [...code];
     newCode[index] = value;
     setCode(newCode);
-
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`mfa-pg-input-${index + 1}`);
-      nextInput?.focus();
-    }
+    if (value && index < 5) document.getElementById(`mfa-pg-input-${index + 1}`)?.focus();
   };
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
     setIsVerifying(true);
-
     setTimeout(() => {
       setIsVerifying(false);
-      addToast({
-        type: "success",
-        title: "MFA Verified & Trusted Device Bound",
-        message: "Identity Platform token issued. Welcome to VaultGuard Banking.",
-      });
+      addToast({ type: "success", title: "MFA Verified", message: "Identity token issued. Welcome to VaultGuard." });
       router.push("/dashboard");
-    }, 700);
+    }, 500);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#050b14] text-slate-100 selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Navbar />
-
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="max-w-md w-full glass-panel rounded-3xl p-8 sm:p-10 border border-emerald-500/30 shadow-2xl relative text-center">
-          
-          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center mx-auto mb-6 text-emerald-400 mint-glow">
-            <ShieldCheck className="w-8 h-8" />
-          </div>
-
-          <h2 className="text-2xl font-bold text-white">Verify it&apos;s you</h2>
-          <p className="text-xs text-slate-400 mt-2">
-            Enter the 6-digit code from your authenticator app or hardware passkey.
-          </p>
-
-          <form onSubmit={handleVerify} className="mt-8 space-y-6">
-            <div className="flex justify-between gap-2">
-              {code.map((digit, idx) => (
-                <input
-                  key={idx}
-                  id={`mfa-pg-input-${idx}`}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleChange(idx, e.target.value)}
-                  className="w-12 h-14 text-center text-2xl font-bold rounded-2xl bg-slate-900 border border-slate-700 text-emerald-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 focus:outline-none transition-all"
-                />
-              ))}
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
+        <Card className="max-w-sm w-full">
+          <CardContent className="pt-6 text-center space-y-5">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-muted border border-border flex items-center justify-center">
+                <ShieldCheck className="w-5 h-5 text-foreground" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">Security Verification</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enter the 6-digit code from your authenticator app.
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-              <span className="flex items-center gap-1">
-                <Smartphone className="w-3.5 h-3.5 text-emerald-400" /> Pixel 9 Bound
-              </span>
-              <span>
-                Code refreshes in <strong className="text-emerald-400">{timer}s</strong>
-              </span>
-            </div>
+            <Separator />
 
-            <button
-              type="submit"
-              disabled={isVerifying}
-              className="w-full py-3.5 px-4 rounded-xl gradient-mint text-slate-950 font-bold text-sm hover:opacity-95 disabled:opacity-50 transition-all shadow-lg flex items-center justify-center gap-2"
-            >
-              {isVerifying ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" /> Verifying Code...
-                </>
-              ) : (
-                "Verify & Continue to Dashboard"
-              )}
-            </button>
+            <form onSubmit={handleVerify} className="space-y-5">
+              <div className="flex justify-center gap-2">
+                {code.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    id={`mfa-pg-input-${idx}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleChange(idx, e.target.value)}
+                    className="w-10 h-12 text-center text-xl font-bold rounded-lg bg-input border border-border text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 transition-colors"
+                  />
+                ))}
+              </div>
 
-            <div className="pt-4 text-center">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Smartphone className="w-3 h-3" /> Trusted Device
+                </span>
+                <span>Refreshes in <strong className="text-foreground font-mono">{timer}s</strong></span>
+              </div>
+
+              <Button type="submit" disabled={isVerifying} className="w-full">
+                {isVerifying ? (
+                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying...</>
+                ) : "Verify & Continue"}
+              </Button>
+
               <button
                 type="button"
-                onClick={() => {
-                  addToast({
-                    type: "info",
-                    title: "SMS Backup Sent",
-                    message: "A emergency fallback OTP has been dispatched to +94 77 *** 4567.",
-                  });
-                }}
-                className="text-xs text-slate-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-1"
+                onClick={() => addToast({ type: "info", title: "SMS Code Sent", message: "A fallback code was dispatched to your mobile." })}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
               >
-                <Key className="w-3.5 h-3.5" /> Send SMS Backup Code Instead
+                <Key className="w-3 h-3" /> Send SMS Code Instead
               </button>
-            </div>
-          </form>
-
-        </div>
+            </form>
+          </CardContent>
+        </Card>
       </main>
-
       <Footer />
       <ToastContainer />
     </div>
