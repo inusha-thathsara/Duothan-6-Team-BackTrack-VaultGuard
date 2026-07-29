@@ -3,19 +3,17 @@ import "./globals.css";
 import { VaultGuardProvider } from "@/context/VaultGuardContext";
 
 export const metadata: Metadata = {
-  title: "VaultGuard — Secure Digital Banking Rebuild | Team BackTrack",
+  title: "VaultGuard — Secure Digital Banking Platform",
   description:
-    "VaultGuard is a zero-trust, attack-isolated digital banking platform rebuilt on Google Cloud Platform microservices following the 2065 malware crisis. IEEE NSBM Duothan 6.0.",
+    "VaultGuard is a zero-trust, attack-isolated digital banking platform rebuilt on Google Cloud Platform microservices following the malware crisis.",
   keywords: [
     "VaultGuard",
     "Digital Banking",
     "Zero Trust",
     "Microservices",
-    "IEEE NSBM",
-    "Duothan 6.0",
-    "Team BackTrack",
+    "FinTech",
   ],
-  authors: [{ name: "Team BackTrack" }],
+  authors: [{ name: "VaultGuard Engineering Team" }],
 };
 
 export default function RootLayout({

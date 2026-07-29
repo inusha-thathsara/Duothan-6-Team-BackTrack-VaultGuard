@@ -44,7 +44,7 @@ export default function LandingPage() {
               <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold tracking-wide">
                   <ShieldCheck className="w-4 h-4" />
-                  <span>DUOTHAN 6.0 · TEAM BACKTRACK BLUEPRINT</span>
+                  <span>ZERO-TRUST DIGITAL BANKING PLATFORM</span>
                 </div>
 
                 <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-[1.1]">
@@ -170,7 +170,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto">
             <div className="text-center max-w-3xl mx-auto mb-12">
               <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                System Blueprint (Phase 01 Recon & Phase 02 Rebuild)
+                System Architecture & Domain Blueprint
               </span>
               <h2 className="text-3xl font-extrabold text-white mt-4">
                 Designed so no single failure brings down finance

@@ -94,7 +94,7 @@ export const StatementModal: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-400 print:text-gray-600 mt-1">Post-Disaster Digital Banking Platform</p>
-              <p className="text-[11px] text-slate-500 print:text-gray-500">IEEE NSBM Duothan 6.0 · Team BackTrack</p>
+              <p className="text-[11px] text-slate-500 print:text-gray-500">VaultGuard Verified Financial Record</p>
             </div>
             <div className="text-right text-xs">
               <p className="font-semibold text-white print:text-black">OFFICIAL STATEMENT</p>

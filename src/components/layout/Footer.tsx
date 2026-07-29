@@ -14,9 +14,6 @@ export const Footer: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-white tracking-wider">VAULTGUARD</span>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                PHASE 02 REBUILD
-              </span>
             </div>
             <p className="text-slate-400 leading-relaxed text-[11px]">
               Post-cyberattack digital banking rebuild platform engineered with zero-trust architecture, domain isolation, and HSM key management.
