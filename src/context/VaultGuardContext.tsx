@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 export type Role = "CUSTOMER" | "SUPPORT_OPERATOR";
 
@@ -397,17 +397,17 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  const addToast = (toast: Omit<ToastMessage, "id">) => {
+  const addToast = useCallback((toast: Omit<ToastMessage, "id">) => {
     const id = `toast_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
     setToasts((prev) => [...prev, { ...toast, id }]);
     setTimeout(() => {
-      removeToast(id);
+      setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4500);
-  };
+  }, []);
 
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  }, []);
 
   // Step-up MFA Modal State
   const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);

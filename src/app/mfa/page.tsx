@@ -60,7 +60,7 @@ export default function MfaPage() {
             <ShieldCheck className="w-8 h-8" />
           </div>
 
-          <h2 className="text-2xl font-bold text-white">Verify it's you</h2>
+          <h2 className="text-2xl font-bold text-white">Verify it&apos;s you</h2>
           <p className="text-xs text-slate-400 mt-2">
             Enter the 6-digit code from your authenticator app or hardware passkey.
           </p>
