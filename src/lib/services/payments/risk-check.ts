@@ -8,6 +8,16 @@ export type RiskCheckResult = {
 
 const STEP_UP_MFA_THRESHOLD = Number(process.env.STEP_UP_MFA_THRESHOLD) || 5000;
 
+let paymentsDegradedFlag = false;
+
+export function isPaymentsDegraded(): boolean {
+  return paymentsDegradedFlag || process.env.DEGRADED_MODE === "true";
+}
+
+export function setPaymentsDegraded(degraded: boolean): void {
+  paymentsDegradedFlag = degraded;
+}
+
 /**
  * Risk and limits check for payment operations (FR-11).
  *

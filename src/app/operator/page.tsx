@@ -17,13 +17,40 @@ import {
   AlertTriangle
 } from "lucide-react";
 
+interface CustomerAccountRecord {
+  type: string;
+  accNo: string;
+  balance: number;
+  status?: string;
+}
+
+interface CustomerRecord {
+  id?: string;
+  fullName: string;
+  email: string;
+  role?: string;
+  nationalId?: string;
+  mfaStatus?: string;
+  lastLogin?: string;
+  accounts: CustomerAccountRecord[];
+}
+
+interface AccessAuditLog {
+  id: string;
+  operator: string;
+  targetId: string;
+  reason: string;
+  timestamp: string;
+  kmsSig: string;
+}
+
 export default function OperatorPage() {
   const { activeRole, switchRole, addToast } = useVaultGuard();
 
   const [lookupQuery, setLookupQuery] = useState("941820491V");
   const [accessReason, setAccessReason] = useState("Customer requested support for post-malware re-enrollment verification.");
-  const [customerRecord, setCustomerRecord] = useState<any | null>(null);
-  const [accessAuditLogs, setAccessAuditLogs] = useState<any[]>([]);
+  const [customerRecord, setCustomerRecord] = useState<CustomerRecord | null>(null);
+  const [accessAuditLogs, setAccessAuditLogs] = useState<AccessAuditLog[]>([]);
 
   const handleLookup = (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,7 +208,7 @@ export default function OperatorPage() {
 
                   <h4 className="font-semibold text-white">Associated Accounts</h4>
                   <div className="space-y-2 font-mono">
-                    {customerRecord.accounts.map((acc: any, i: number) => (
+                    {customerRecord.accounts.map((acc, i: number) => (
                       <div key={i} className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex justify-between">
                         <span>{acc.type} ({acc.accNo})</span>
                         <strong className="text-white">LKR {acc.balance.toLocaleString()}</strong>
@@ -219,7 +246,7 @@ export default function OperatorPage() {
                 <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <span className="text-cyan-400 font-bold">{log.operator}</span> queried <span className="text-white font-bold">{log.targetId}</span>
-                    <span className="block text-slate-400 text-[11px] font-sans mt-0.5">Reason: "{log.reason}"</span>
+                    <span className="block text-slate-400 text-[11px] font-sans mt-0.5">Reason: &quot;{log.reason}&quot;</span>
                   </div>
                   <div className="text-right text-[11px] text-slate-500">
                     <span>{log.timestamp}</span>

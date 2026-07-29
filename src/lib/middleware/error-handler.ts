@@ -104,3 +104,6 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
     { status: 500 }
   );
 }
+
+export const handleError = handleApiError;
+
