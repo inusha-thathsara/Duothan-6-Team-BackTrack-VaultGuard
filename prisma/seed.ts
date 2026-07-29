@@ -1,5 +1,5 @@
 import { PrismaClient, UserRole, AccountType, AccountStatus, TransactionType, TransactionStatus } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -39,8 +39,8 @@ async function main() {
   console.log(`✅ Seeded ${backupIdentities.length} backup identity records.`);
 
   // 3. Password Hashes
-  const defaultPasswordHash = await bcrypt.hash('VaultGuard@2065', 12);
-  const operatorPasswordHash = await bcrypt.hash('Operator@2065', 12);
+  const defaultPasswordHash = crypto.createHash('sha256').update('VaultGuard@2065').digest('hex');
+  const operatorPasswordHash = crypto.createHash('sha256').update('Operator@2065').digest('hex');
 
   // 4. Seed Demo Users & Accounts
   console.log('👤 Seeding Demo Users and Accounts...');
