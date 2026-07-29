@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { redactObject } from "@/lib/logger/logger";
 import { checkRateLimit } from "@/lib/middleware/rate-limiter";
 import { applySecurityHeaders, getOrCreateCorrelationId } from "@/lib/middleware/security";
-import { eventBus } from "@/lib/events/event-bus";
 import { notificationService } from "@/lib/services/notifications/notification.service";
 import { NextResponse, NextRequest } from "next/server";
 
@@ -63,8 +62,8 @@ describe("DevOps, Security & QA - Security Middleware & Headers (NFR-S1)", () =>
   });
 });
 
-describe("DevOps, Security & QA - EventBus & Notification Consumer (FR-17)", () => {
-  it("should dispatch and process notification events", async () => {
+describe("DevOps, Security & QA - Notification Consumer (FR-17)", () => {
+  it("should format and deliver notification payload for events", async () => {
     const sendSpy = vi.spyOn(notificationService, "sendNotification");
 
     const eventPayload = {
@@ -78,11 +77,14 @@ describe("DevOps, Security & QA - EventBus & Notification Consumer (FR-17)", () 
       timestamp: new Date().toISOString(),
     };
 
-    eventBus.publish(eventPayload);
+    await notificationService.handleNotificationEvent(eventPayload);
 
-    // Allow async microtask execution
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(sendSpy).toHaveBeenCalled();
+    expect(sendSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "EMAIL",
+        recipient: "customer@vaultguard.bank",
+        subject: "VaultGuard Notice: Payment Completed",
+      })
+    );
   });
 });

@@ -72,11 +72,9 @@ export class Logger {
       timestamp: new Date().toISOString(),
       level,
       message,
-      ...(correlationId && { correlationId }),
-      ...(context && { context: redactObject(context) as Record<string, unknown> }),
-      ...(error && {
-        error: error instanceof Error ? error.stack || error.message : String(error),
-      }),
+      ...(correlationId ? { correlationId } : {}),
+      ...(context ? { context: redactObject(context) as Record<string, unknown> } : {}),
+      ...(error ? { error: error instanceof Error ? error.stack || error.message : String(error) } : {}),
     };
 
     const formatted = JSON.stringify(entry);
