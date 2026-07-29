@@ -4,13 +4,13 @@ FROM node:20-alpine AS base
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev || npm install --omit=dev
 
 # --- Builder ---
 FROM base AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci || npm install --legacy-peer-deps
 COPY . .
 RUN npx prisma generate
 RUN npm run build
