@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="50%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#065f46"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#10b981" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background Card -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  
+  <!-- Outer Shield Border Glow -->
+  <path d="M256 64 L416 128 V240 C416 346.7 348 416 256 448 C164 416 96 346.7 96 240 V128 Z" 
+        fill="none" stroke="#10b981" stroke-width="12" opacity="0.4" filter="url(#shadow)"/>
+
+  <!-- Main Shield Body -->
+  <path d="M256 80 L396 136 V236 C396 331 336.5 393 256 422 C175.5 393 116 331 116 236 V136 Z" 
+        fill="url(#shieldGrad)" stroke="#34d399" stroke-width="4"/>
+
+  <!-- Inner Vault Lock Emblem -->
+  <!-- Outer Ring -->
+  <circle cx="256" cy="236" r="64" fill="none" stroke="#ffffff" stroke-width="14" opacity="0.95"/>
+  <circle cx="256" cy="236" r="44" fill="#090d16" stroke="#34d399" stroke-width="6"/>
+
+  <!-- Keyhole / Dial Center -->
+  <circle cx="256" cy="226" r="16" fill="url(#glowGrad)"/>
+  <polygon points="248,226 264,226 268,272 244,272" fill="url(#glowGrad)"/>
+</svg>
