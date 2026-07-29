@@ -1,0 +1,22 @@
+FROM node:20-alpine AS test
+
+WORKDIR /app
+
+# Copy package definitions
+COPY package.json package-lock.json ./
+
+# Install all dependencies (including devDependencies required for tests)
+RUN npm ci || npm install --legacy-peer-deps
+
+# Copy full application codebase
+COPY . .
+
+# Generate Prisma client for database models used in tests
+RUN npx prisma@6 generate
+
+# Environment setup for test environment
+ENV NODE_ENV=test
+ENV JWT_SECRET=vaultguard-test-jwt-secret-key-2026
+
+# Command to execute tests
+CMD ["npm", "test"]

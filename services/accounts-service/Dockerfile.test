@@ -1,0 +1,23 @@
+FROM node:20-alpine AS test
+
+WORKDIR /app
+
+# Copy package definitions
+COPY package*.json ./
+COPY prisma ./prisma/
+
+# Install all dependencies (including devDependencies required for tests)
+RUN npm ci || npm install
+
+# Copy source code and test files
+COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Environment setup for test environment
+ENV NODE_ENV=test
+ENV JWT_SECRET=vaultguard-test-jwt-secret-key-2026
+
+# Run NestJS unit tests
+CMD ["npm", "run", "test"]
