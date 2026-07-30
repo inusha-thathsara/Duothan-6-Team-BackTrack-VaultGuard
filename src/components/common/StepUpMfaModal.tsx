@@ -44,21 +44,35 @@ export const StepUpMfaModal: React.FC = () => {
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const fullCode = code.join("");
     if (fullCode.length !== 6) {
       addToast({ type: "error", title: "Invalid Code", message: "Please enter all 6 digits." });
       return;
     }
     setIsVerifying(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/auth/mfa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: fullCode }),
+      });
+
       setIsVerifying(false);
-      addToast({ type: "success", title: "Authorization Granted", message: "Signature verified." });
-      if (pendingMfaAction) pendingMfaAction();
-      setCode(["", "", "", "", "", ""]);
-      setTimer(30);
-      closeMfaModal();
-    }, 600);
+
+      if (res.ok) {
+        addToast({ type: "success", title: "Authorization Granted", message: "Signature verified by Auth Service." });
+        if (pendingMfaAction) pendingMfaAction();
+        setCode(["", "", "", "", "", ""]);
+        setTimer(30);
+        closeMfaModal();
+      } else {
+        addToast({ type: "error", title: "MFA Verification Failed", message: "Invalid or expired TOTP code." });
+      }
+    } catch {
+      setIsVerifying(false);
+      addToast({ type: "error", title: "Network Error", message: "Failed to connect to authentication server." });
+    }
   };
 
   return (

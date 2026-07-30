@@ -156,16 +156,26 @@ interface VaultGuardContextType {
 const VaultGuardContext = createContext<VaultGuardContextType | undefined>(undefined);
 
 export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // User Session
-  const [user, setUser] = useState<UserProfile | null>({
-    id: "usr_alex_2065",
-    email: "alex.perera@vaultguard.bank",
-    fullName: "Alex Perera",
-    nationalId: "941820491V",
-    role: "CUSTOMER",
-    mfaEnabled: true,
-    trustedDevice: true,
-  });
+  // User Session (Initialized as null to require explicit authentication)
+  const [user, setUser] = useState<UserProfile | null>(null);
+
+  // Restore user session on mount via /api/auth/me
+  useEffect(() => {
+    async function restoreSession() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const body = await res.json();
+          if (body.success && body.data?.user) {
+            setUser(body.data.user);
+          }
+        }
+      } catch (err) {
+        // Session empty or expired
+      }
+    }
+    restoreSession();
+  }, []);
 
   const [activeRole, setActiveRole] = useState<Role>("CUSTOMER");
   const [isPaymentsDegraded, setIsPaymentsDegraded] = useState<boolean>(false);
@@ -509,32 +519,42 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const login = async (email: string, pass: string): Promise<boolean> => {
-    if (email && pass) {
-      setUser({
-        id: "usr_alex_2065",
-        email,
-        fullName: "Alex Perera",
-        nationalId: "941820491V",
-        role: activeRole,
-        mfaEnabled: true,
-        trustedDevice: true,
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: pass }),
       });
-      addToast({
-        type: "success",
-        title: "Session Authenticated",
-        message: "Zero-Trust token issued by VaultGuard Auth Service.",
-      });
-      return true;
+
+      if (res.ok) {
+        const body = await res.json();
+        if (body.success && body.data?.user) {
+          setUser(body.data.user);
+          addToast({
+            type: "success",
+            title: "Session Authenticated",
+            message: "Zero-Trust JWT session token issued by Auth Service.",
+          });
+          return true;
+        }
+      }
+      return false;
+    } catch {
+      return false;
     }
-    return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Ignore network failure on logout
+    }
     setUser(null);
     addToast({
       type: "info",
       title: "Logged Out",
-      message: "Session token invalidated and cleared from trusted device memory.",
+      message: "Session token invalidated and cleared.",
     });
   };
 

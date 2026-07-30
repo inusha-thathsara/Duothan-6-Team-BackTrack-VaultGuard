@@ -1,40 +1,32 @@
 import { NextRequest } from "next/server";
 import { AuthContext } from "@/lib/types";
+import { verifySessionToken } from "@/lib/auth/jwt";
 
 /**
  * Extract and verify authentication context from request.
- *
- * TODO (Member 2 — Kaushalya): Replace with real JWT verification using jose.
- * This stub allows Member 3 & 4 to develop API routes against a working auth layer.
- *
- * Production implementation should:
- * 1. Extract token from Authorization: Bearer <token>
- * 2. Verify signature + expiry with jose (Identity Platform JWT analogue)
- * 3. Return { userId, role } from verified claims
+ * Checks both Authorization: Bearer <token> and HttpOnly cookie `vaultguard_session`.
  */
 export async function getAuthContext(
   request: NextRequest
 ): Promise<AuthContext | null> {
+  let token: string | undefined;
+
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
+  if (authHeader?.startsWith("Bearer ")) {
+    token = authHeader.split(" ")[1];
+  } else {
+    token = request.cookies.get("vaultguard_session")?.value;
   }
 
-  try {
-    const token = authHeader.split(" ")[1];
-    // STUB: Decode base64-encoded JSON payload for development.
-    // In production (M2): verify JWT signature via jose.
-    const payload = JSON.parse(Buffer.from(token, "base64").toString("utf-8"));
+  if (!token) return null;
 
-    if (!payload.userId) return null;
+  const payload = await verifySessionToken(token);
+  if (!payload) return null;
 
-    return {
-      userId: payload.userId,
-      role: payload.role || "CUSTOMER",
-    };
-  } catch {
-    return null;
-  }
+  return {
+    userId: payload.userId,
+    role: payload.role === "SUPPORT_OPERATOR" ? "SUPPORT_OPERATOR" : "CUSTOMER",
+  };
 }
 
 /**
@@ -66,4 +58,3 @@ export class AuthError extends Error {
     this.name = "AuthError";
   }
 }
-

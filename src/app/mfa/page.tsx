@@ -31,14 +31,28 @@ export default function MfaPage() {
     if (value && index < 5) document.getElementById(`mfa-pg-input-${index + 1}`)?.focus();
   };
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsVerifying(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/auth/mfa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.join("") }),
+      });
+
       setIsVerifying(false);
-      addToast({ type: "success", title: "MFA Verified", message: "Identity token issued. Welcome to VaultGuard." });
-      router.push("/dashboard");
-    }, 500);
+
+      if (res.ok) {
+        addToast({ type: "success", title: "MFA Verified", message: "Identity token issued. Welcome to VaultGuard." });
+        router.push("/dashboard");
+      } else {
+        addToast({ type: "error", title: "Verification Failed", message: "Invalid or expired TOTP code." });
+      }
+    } catch {
+      setIsVerifying(false);
+      addToast({ type: "error", title: "Network Error", message: "Failed to connect to authentication server." });
+    }
   };
 
   return (
