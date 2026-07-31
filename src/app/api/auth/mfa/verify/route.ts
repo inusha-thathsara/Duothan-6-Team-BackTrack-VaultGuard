@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     let isVerified = false;
 
-    let dbUser = await prisma.user.findUnique({
+    const dbUser = await prisma.user.findUnique({
       where: { id: auth.userId },
       include: { mfaFactors: { orderBy: { createdAt: "desc" } } },
     });

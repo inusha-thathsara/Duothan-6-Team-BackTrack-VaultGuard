@@ -163,6 +163,41 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Accounts (initialized empty until restored from database)
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
 
+  const [activeRole, setActiveRole] = useState<Role>("CUSTOMER");
+  const [isPaymentsDegraded, setIsPaymentsDegraded] = useState<boolean>(false);
+
+  // Payees
+  const [payees, setPayees] = useState([
+    { id: "pay_1", name: "Nimal Perera", accountNumber: "****7732", bankCode: "BOC-001", type: "PERSON" as const },
+    { id: "pay_2", name: "CEB Electricity Board", accountNumber: "CEB-883921", bankCode: "CEB-BILL", type: "BILLER" as const },
+    { id: "pay_3", name: "Dialog Axiata Telecom", accountNumber: "0771234567", bankCode: "DIALOG-BILL", type: "BILLER" as const },
+    { id: "pay_4", name: "Kandy Supermarket Merchant", accountNumber: "****5510", bankCode: "COMM-042", type: "PERSON" as const },
+  ]);
+
+  // Transactions (default to empty array for newly created / authenticated accounts)
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+
+  // Loans (default to empty array for newly created / authenticated accounts)
+  const [loans, setLoans] = useState<LoanItem[]>([]);
+  const [repaymentSchedule, setRepaymentSchedule] = useState<RepaymentScheduleItem[]>([]);
+
+  // Trusted Devices (reflects active authenticated browser session)
+  const [trustedDevices, setTrustedDevices] = useState<TrustedDeviceItem[]>([
+    {
+      id: "dev_current",
+      deviceLabel: "Active Web Session (This Device)",
+      userAgent: typeof window !== "undefined" ? window.navigator.userAgent : "Browser Session",
+      ipAddress: "Active IP",
+      location: "Verified Session",
+      trustedAt: new Date().toISOString(),
+      isCurrent: true,
+      status: "ACTIVE",
+    },
+  ]);
+
+  // Security Events (populated from PostgreSQL audit logs)
+  const [securityEvents, setSecurityEvents] = useState<SecurityEventItem[]>([]);
+
   // Restore user session on mount via /api/auth/me and /api/user/profile
   useEffect(() => {
     async function restoreSession() {
@@ -281,41 +316,6 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
     restoreSession();
   }, []);
-
-  const [activeRole, setActiveRole] = useState<Role>("CUSTOMER");
-  const [isPaymentsDegraded, setIsPaymentsDegraded] = useState<boolean>(false);
-
-  // Payees
-  const [payees, setPayees] = useState([
-    { id: "pay_1", name: "Nimal Perera", accountNumber: "****7732", bankCode: "BOC-001", type: "PERSON" as const },
-    { id: "pay_2", name: "CEB Electricity Board", accountNumber: "CEB-883921", bankCode: "CEB-BILL", type: "BILLER" as const },
-    { id: "pay_3", name: "Dialog Axiata Telecom", accountNumber: "0771234567", bankCode: "DIALOG-BILL", type: "BILLER" as const },
-    { id: "pay_4", name: "Kandy Supermarket Merchant", accountNumber: "****5510", bankCode: "COMM-042", type: "PERSON" as const },
-  ]);
-
-  // Transactions (default to empty array for newly created / authenticated accounts)
-  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
-
-  // Loans (default to empty array for newly created / authenticated accounts)
-  const [loans, setLoans] = useState<LoanItem[]>([]);
-  const [repaymentSchedule, setRepaymentSchedule] = useState<RepaymentScheduleItem[]>([]);
-
-  // Trusted Devices (reflects active authenticated browser session)
-  const [trustedDevices, setTrustedDevices] = useState<TrustedDeviceItem[]>([
-    {
-      id: "dev_current",
-      deviceLabel: "Active Web Session (This Device)",
-      userAgent: typeof window !== "undefined" ? window.navigator.userAgent : "Browser Session",
-      ipAddress: "Active IP",
-      location: "Verified Session",
-      trustedAt: new Date().toISOString(),
-      isCurrent: true,
-      status: "ACTIVE",
-    },
-  ]);
-
-  // Security Events (populated from PostgreSQL audit logs)
-  const [securityEvents, setSecurityEvents] = useState<SecurityEventItem[]>([]);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);

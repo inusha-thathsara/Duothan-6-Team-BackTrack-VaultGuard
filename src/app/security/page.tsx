@@ -384,6 +384,7 @@ export default function SecurityPage() {
             <div className="space-y-4 pt-2 text-center">
               <div className="flex flex-col items-center justify-center p-4 bg-muted/40 rounded-xl border border-border">
                 {mfaSetupData?.qrCodeDataUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={mfaSetupData.qrCodeDataUrl} alt="2FA QR Code" className="w-48 h-48 rounded-lg p-2 bg-white border border-border shadow-sm" />
                 ) : (
                   <div className="w-48 h-48 rounded-lg bg-muted flex items-center justify-center border border-border">

@@ -201,6 +201,7 @@ export default function EnrollPage() {
                 {/* QR Code Container */}
                 <div className="flex flex-col items-center justify-center p-4 bg-card rounded-xl border border-border space-y-3">
                   {mfaData?.qrCodeDataUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={mfaData.qrCodeDataUrl} alt="2FA QR Code" className="w-44 h-44 rounded-lg border border-border p-2 bg-white shadow-sm" />
                   ) : (
                     <div className="w-44 h-44 rounded-lg border border-border bg-muted flex items-center justify-center">
