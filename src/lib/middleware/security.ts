@@ -31,3 +31,4 @@ export function getOrCreateCorrelationId(req: NextRequest): string {
   // Fallback unique correlation ID generator
   return `corr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
+

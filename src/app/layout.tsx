@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { VaultGuardProvider } from "@/context/VaultGuardContext";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "VaultGuard — Secure Digital Banking Platform",
@@ -22,10 +26,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased dark">
-      <body className="min-h-full flex flex-col bg-[#050b14] text-slate-100 font-sans selection:bg-emerald-500 selection:text-slate-950">
+    <html lang="en" className={cn("h-full antialiased dark", "font-sans", geist.variable)}>
+      <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <VaultGuardProvider>{children}</VaultGuardProvider>
       </body>
     </html>
   );
 }
+

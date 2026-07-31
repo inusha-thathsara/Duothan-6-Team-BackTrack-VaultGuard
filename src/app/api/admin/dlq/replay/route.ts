@@ -71,3 +71,4 @@ export async function POST(req: NextRequest) {
     return applySecurityHeaders(response, correlationId);
   }
 }
+

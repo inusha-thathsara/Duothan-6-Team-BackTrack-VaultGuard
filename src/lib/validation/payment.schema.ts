@@ -48,3 +48,4 @@ export type TransferInput = z.infer<typeof transferSchema>;
 export type BillPayInput = z.infer<typeof billPaySchema>;
 export type HistoryQuery = z.infer<typeof historyQuerySchema>;
 export type CreatePayeeInput = z.infer<typeof createPayeeSchema>;
+
