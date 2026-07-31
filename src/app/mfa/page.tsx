@@ -14,7 +14,7 @@ import { ShieldCheck, Smartphone, RefreshCw, Key } from "lucide-react";
 export default function MfaPage() {
   const router = useRouter();
   const { addToast } = useVaultGuard();
-  const [code, setCode] = useState(["1", "3", "5", "7", "9", "2"]);
+  const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(45);
   const [isVerifying, setIsVerifying] = useState(false);
 

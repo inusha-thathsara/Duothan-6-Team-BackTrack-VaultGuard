@@ -101,6 +101,7 @@ export interface ToastMessage {
 
 interface VaultGuardContextType {
   user: UserProfile | null;
+  setUser: (user: UserProfile | null) => void;
   isAuthenticated: boolean;
   activeRole: Role;
   switchRole: (role: Role) => void;
@@ -556,6 +557,8 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       title: "Logged Out",
       message: "Session token invalidated and cleared.",
     });
+    // Redirect to login after clearing session
+    window.location.href = "/login";
   };
 
   const addTransaction = (tx: Omit<TransactionItem, "id" | "date" | "sagaStatus">): TransactionItem => {
@@ -687,6 +690,7 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     <VaultGuardContext.Provider
       value={{
         user,
+        setUser,
         isAuthenticated: !!user,
         activeRole,
         switchRole,

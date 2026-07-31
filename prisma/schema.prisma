@@ -45,19 +45,34 @@ model User {
   passwordHash String   @map("password_hash")
   nationalId   String?  @unique @map("national_id")
   fullName     String   @map("full_name")
+  phoneNumber  String?  @map("phone_number")
   role         UserRole @default(CUSTOMER)
   mfaEnabled   Boolean  @default(false) @map("mfa_enabled")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  accounts       Account[]
-  payees         Payee[]
-  loans          Loan[]
-  mfaFactors     MfaFactor[]
-  trustedDevices TrustedDevice[]
-  refreshTokens  RefreshToken[]
+  accounts            Account[]
+  payees              Payee[]
+  loans               Loan[]
+  mfaFactors          MfaFactor[]
+  trustedDevices      TrustedDevice[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }
 
 model MfaFactor {
