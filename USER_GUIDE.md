@@ -61,10 +61,22 @@ npx prisma db seed
 
 ---
 
-## 4. Complete API Reference
+## 4. Demo Accounts & Testing Credentials
+
+For evaluator testing and demo walkthroughs, pre-seeded accounts are provided:
+
+| User Role | Email | Password | Role Features & Access |
+|-----------|-------|----------|------------------------|
+| **Customer (Main Demo)** | `demo@vaultguard.com` | `VaultGuard@2065` | Dashboard, Transfers, Bill Pay, Active Loans, Security Timeline |
+| **Customer (Secondary)** | `nimali@vaultguard.com` | `VaultGuard@2065` | Payee target for peer-to-peer transfers |
+| **Support Operator** | `operator@vaultguard.com` | `Operator@2065` | Operator Panel (`/operator`), Customer Lookup, DLQ Management |
+
+---
+
+## 5. Complete API Reference
 
 ### Authentication Header Format
-All protected endpoints require a Bearer token:
+All protected endpoints accept a session cookie or a Bearer token:
 `Authorization: Bearer <jwt_access_token>`
 
 ---
@@ -75,11 +87,18 @@ All protected endpoints require a Bearer token:
 |--------|----------|-------------|-------------|
 | `POST` | `/api/auth/register` | Public | Register new user account with identity verification |
 | `POST` | `/api/auth/login` | Public | User authentication returning JWT + MFA requirement |
-| `POST` | `/api/auth/mfa/verify` | Authenticated | Verify TOTP MFA token |
+| `POST` | `/api/auth/mfa/setup` | Authenticated | Initialize TOTP MFA secret & QR code generation |
+| `POST` | `/api/auth/mfa/verify` | Authenticated | Verify 6-digit TOTP MFA token |
+| `POST` | `/api/auth/forgot-password` | Public | Request password reset verification token |
+| `POST` | `/api/auth/reset-password` | Public | Complete password reset with verification token |
+| `GET`  | `/api/auth/me` | Authenticated | Check current authenticated session & user details |
+| `POST` | `/api/auth/logout` | Authenticated | Revoke refresh token and terminate active session |
+| `GET`  | `/api/user/profile` | Customer | Fetch customer profile & associated bank accounts |
+| `PATCH`| `/api/user/profile` | Customer | Update customer profile details and security settings |
 | `POST` | `/api/payments/transfer` | Customer | Idempotent balance transfer between accounts (FR-13, FR-14a) |
 | `POST` | `/api/payments/bill-pay` | Customer | Process bill payment to external payees |
 | `GET`  | `/api/payments/history` | Customer | Search & filter transaction history |
-| `GET`  | `/api/payees` | Customer | Fetch payees list |
+| `GET`  | `/api/payees` | Customer | Retrieve payees list |
 | `GET`  | `/api/loans` | Customer | Fetch active loans and repayment schedules (FR-15) |
 | `POST` | `/api/loans/repay` | Customer | Execute loan repayment from checking/savings (FR-16) |
 | `GET`  | `/api/audit/me` | Customer | Retrieve personal security activity timeline (FR-18) |
