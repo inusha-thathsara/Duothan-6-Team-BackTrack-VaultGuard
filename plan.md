@@ -1,20 +1,26 @@
-# Production Hardening & Demo Removal Implementation Plan
+# Production Hardening, Role-Based Access Control & Demo Removal Implementation Plan
 
 ## Overview
-This plan outlines the stage-by-stage refactoring required to remove all hardcoded demo fallbacks, mock users, and fake authentication shortcuts across VaultGuard. The system will operate strictly on real PostgreSQL database persistence, JWT session tokens, Next.js Edge Middleware route protection, and RBAC (Role-Based Access Control).
+This plan outlines the stage-by-stage refactoring required to remove all hardcoded demo fallbacks, mock users, and fake authentication shortcuts across VaultGuard. The system will operate strictly on real PostgreSQL database persistence, JWT session tokens, Next.js Edge Middleware route protection, strict Role-Based Access Control (RBAC), and verified payment transfer saga execution.
 
 ---
 
-## Stage 1: Next.js Edge Middleware & Session Verification
-- **File**: `src/middleware.ts`
-- **Objective**: Protect application routes at the Edge level using `jose` JWT verification.
+## Stage 1: Next.js Edge Middleware & Role-Based Access Control (RBAC)
+- **Files**:
+  - `src/middleware.ts`
+  - `src/components/layout/Navbar.tsx`
+  - `src/app/operator/page.tsx`
+- **Objective**: Protect application routes at the Edge level using `jose` JWT verification and enforce strict RBAC for the `/operator` section.
 - **Actions**:
-  1. Parse `vaultguard_session` cookie on incoming requests.
-  2. Verify JWT signature, issuer, audience, and expiration.
-  3. Enforce route access controls:
+  1. Parse `vaultguard_session` cookie on incoming requests in `middleware.ts`.
+  2. Verify JWT signature, issuer, audience, and expiration using `jose`.
+  3. **Role-Based Access Control (RBAC)**:
      - Unauthenticated requests to protected routes (`/dashboard`, `/transfer`, `/bill-pay`, `/loans`, `/security`, `/history`, `/operator`) -> Redirect to `/login?redirect=...`.
-     - Non-operator users accessing `/operator` -> Redirect to `/dashboard`.
+     - Non-operator users (`role !== "SUPPORT_OPERATOR"`) attempting to access `/operator` or `/api/admin/*` -> Redirect to `/dashboard` or return `403 Forbidden`.
      - Authenticated users accessing `/login` -> Redirect to `/dashboard`.
+  4. **Navbar & Operator UI**:
+     - Hide the Operator nav item and role switcher toggle in `Navbar.tsx` unless `user.role === "SUPPORT_OPERATOR"`.
+     - Show an explicit "Access Denied: Support Operator Role Required" banner in `operator/page.tsx` if unauthorized.
 
 ---
 
@@ -36,7 +42,22 @@ This plan outlines the stage-by-stage refactoring required to remove all hardcod
 
 ---
 
-## Stage 3: Context & Application State Refactoring
+## Stage 3: Payment Transfer Saga Logic & Unit Testing
+- **Files**:
+  - `src/lib/services/payments/transfer.service.ts`
+  - `src/app/api/payments/transfer/route.ts`
+  - `src/tests/unit/payments.test.ts`
+- **Objective**: Ensure money transfers execute atomically via Prisma `$transaction`, update sender/receiver balances, record transactional outbox events, and pass unit tests.
+- **Actions**:
+  1. Verify `executeTransfer` saga handles idempotency keys (`requestId`), debiting sender balance, crediting receiver balance, and inserting `OutboxEvent`.
+  2. Write unit tests in `payments.test.ts` to test:
+     - Successful internal & external transfers
+     - Rejection on insufficient funds
+     - Duplicate request idempotency handling
+
+---
+
+## Stage 4: Context & Application State Refactoring
 - **File**: `src/context/VaultGuardContext.tsx`
 - **Objective**: Drive application state entirely from authenticated DB APIs.
 - **Actions**:
@@ -46,7 +67,7 @@ This plan outlines the stage-by-stage refactoring required to remove all hardcod
 
 ---
 
-## Stage 4: Component & UI Page Updates
+## Stage 5: Component & UI Page Updates
 - **Files**:
   - `src/app/login/page.tsx`
   - `src/app/enroll/page.tsx`
@@ -64,8 +85,8 @@ This plan outlines the stage-by-stage refactoring required to remove all hardcod
 
 ---
 
-## Stage 5: Verification & Automated Testing
+## Stage 6: Verification & Automated Testing
 - **Actions**:
-  1. Run `npx vitest run` to verify all 27 unit tests pass.
+  1. Run `npx vitest run` to verify all unit tests pass.
   2. Run `npm run typecheck` to verify 0 TypeScript compiler errors.
-  3. Seed database (`npx prisma db seed`) and test registration, login, profile editing, and 2FA QR code scanning with live credentials.
+  3. Seed database (`npx prisma db seed`) and test registration, login, operator access restriction, payment transfers, profile editing, and 2FA QR code scanning with live credentials.

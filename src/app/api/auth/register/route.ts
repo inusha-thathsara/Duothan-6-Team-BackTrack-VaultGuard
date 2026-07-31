@@ -17,19 +17,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const parsed = registerSchema.parse(body);
 
-    let existingUser = null;
-    try {
-      existingUser = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: parsed.email.toLowerCase() },
-            ...(parsed.nationalId ? [{ nationalId: parsed.nationalId }] : []),
-          ],
-        },
-      });
-    } catch (dbErr) {
-      console.warn("[Register API] DB offline, fallback to in-memory registration response.");
-    }
+    const emailLower = parsed.email.toLowerCase().trim();
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: emailLower },
+          ...(parsed.nationalId ? [{ nationalId: parsed.nationalId }] : []),
+        ],
+      },
+    });
 
     if (existingUser) {
       return NextResponse.json(
@@ -38,27 +35,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let userId = `usr_${Date.now()}`;
     const passwordHash = await hashPassword(parsed.password);
 
-    try {
-      const user = await prisma.user.create({
+    // Create user & initial account atomically in Prisma
+    const accNum = `1008${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
         data: {
-          email: parsed.email.toLowerCase(),
+          email: emailLower,
           passwordHash,
           fullName: parsed.fullName,
           nationalId: parsed.nationalId || `NIC-${Date.now()}`,
-          phoneNumber: parsed.phoneNumber || "+94 77 123 4567",
+          phoneNumber: parsed.phoneNumber || "",
           role: "CUSTOMER",
           mfaEnabled: false,
         },
       });
-      userId = user.id;
 
-      const accNum = `1008${Math.floor(100000 + Math.random() * 900000)}`;
-      await prisma.account.create({
+      await tx.account.create({
         data: {
-          userId: user.id,
+          userId: newUser.id,
           accountNumber: accNum,
           type: "SAVINGS",
           balance: 25000.0,
@@ -66,16 +63,16 @@ export async function POST(request: NextRequest) {
           status: "ACTIVE",
         },
       });
-    } catch (dbErr) {
-      console.warn("[Register API] DB create skipped (offline). Continuing with demo payload.");
-    }
+
+      return newUser;
+    });
 
     const userPayload = {
-      userId,
-      email: parsed.email.toLowerCase(),
-      fullName: parsed.fullName,
-      nationalId: parsed.nationalId || "941820491V",
-      role: "CUSTOMER" as const,
+      userId: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      nationalId: user.nationalId || "",
+      role: user.role as "CUSTOMER" | "SUPPORT_OPERATOR",
     };
 
     const token = await signSessionToken(userPayload);
@@ -84,14 +81,14 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         user: {
-          id: userId,
-          email: parsed.email.toLowerCase(),
-          fullName: parsed.fullName,
-          nationalId: parsed.nationalId || "941820491V",
-          phoneNumber: parsed.phoneNumber || "+94 77 123 4567",
-          role: "CUSTOMER",
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          nationalId: user.nationalId,
+          phoneNumber: user.phoneNumber,
+          role: user.role,
           mfaEnabled: false,
-          accountNumber: `1008${Math.floor(100000 + Math.random() * 900000)}`,
+          accountNumber: accNum,
         },
         token,
       },
@@ -114,7 +111,7 @@ export async function POST(request: NextRequest) {
       );
     }
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to create account" },
+      { success: false, error: error.message || "Failed to create account in database" },
       { status: 500 }
     );
   }

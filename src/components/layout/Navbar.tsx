@@ -16,15 +16,14 @@ import {
   Menu,
   X,
   LogOut,
-  ChevronRight,
 } from "lucide-react";
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
-  const { user, logout, activeRole, switchRole, isPaymentsDegraded } =
-    useVaultGuard();
-
+  const { user, logout, isPaymentsDegraded } = useVaultGuard();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isOperator = user?.role === "SUPPORT_OPERATOR";
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -33,7 +32,7 @@ export const Navbar: React.FC = () => {
     { href: "/history", label: "History", icon: History },
     { href: "/loans", label: "Loans", icon: Landmark },
     { href: "/security", label: "Security", icon: ShieldCheck },
-    ...(activeRole === "SUPPORT_OPERATOR"
+    ...(isOperator
       ? [{ href: "/operator", label: "Operator", icon: UserCheck }]
       : []),
   ];
@@ -98,29 +97,12 @@ export const Navbar: React.FC = () => {
               {isPaymentsDegraded ? "Degraded" : "All Systems"}
             </Link>
 
-            {/* Role Switcher */}
-            <div className="flex items-center p-0.5 rounded-md bg-muted/50 border border-border text-[11px]">
-              <button
-                onClick={() => switchRole("CUSTOMER")}
-                className={`px-2 py-0.5 rounded-sm font-medium transition-colors ${
-                  activeRole === "CUSTOMER"
-                    ? "bg-primary/20 text-foreground/70"
-                    : "text-muted-foreground/60 hover:text-foreground/80"
-                }`}
-              >
-                Customer
-              </button>
-              <button
-                onClick={() => switchRole("SUPPORT_OPERATOR")}
-                className={`px-2 py-0.5 rounded-sm font-medium transition-colors ${
-                  activeRole === "SUPPORT_OPERATOR"
-                    ? "bg-violet-500/20 text-violet-300"
-                    : "text-muted-foreground/60 hover:text-foreground/80"
-                }`}
-              >
-                Operator
-              </button>
-            </div>
+            {/* User Role Badge */}
+            {user && (
+              <div className="px-2.5 py-1 rounded-md bg-muted/50 border border-border text-[11px] font-mono text-muted-foreground">
+                Role: <strong className="text-foreground">{user.role || "CUSTOMER"}</strong>
+              </div>
+            )}
 
             {/* User / Logout */}
             {user ? (
@@ -181,19 +163,13 @@ export const Navbar: React.FC = () => {
             })}
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border text-xs">
-            <span className="text-muted-foreground">
-              Role: <span className="text-white font-medium">{activeRole === "CUSTOMER" ? "Customer" : "Operator"}</span>
-            </span>
-            <button
-              onClick={() =>
-                switchRole(activeRole === "CUSTOMER" ? "SUPPORT_OPERATOR" : "CUSTOMER")
-              }
-              className="text-muted-foreground font-semibold flex items-center gap-1"
-            >
-              Switch <ChevronRight className="w-3 h-3" />
-            </button>
-          </div>
+          {user && (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border text-xs">
+              <span className="text-muted-foreground">
+                Role: <span className="text-white font-medium">{user.role}</span>
+              </span>
+            </div>
+          )}
 
           {user && (
             <button
@@ -208,4 +184,3 @@ export const Navbar: React.FC = () => {
     </header>
   );
 };
-

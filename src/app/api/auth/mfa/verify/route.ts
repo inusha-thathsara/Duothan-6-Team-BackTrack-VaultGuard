@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthContext } from "@/lib/middleware/with-auth";
+import { getAuthContext, requireAuth } from "@/lib/middleware/with-auth";
 import { verifyTotpCode } from "@/lib/services/auth/totp";
 import { prisma } from "@/lib/db/prisma";
 import { z } from "zod";
@@ -12,7 +12,7 @@ const mfaSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthContext(request);
-    const userId = auth?.userId || "usr_alex_2065";
+    requireAuth(auth);
 
     const body = await request.json();
     const { code, secret } = mfaSchema.parse(body);
@@ -26,38 +26,34 @@ export async function POST(request: NextRequest) {
 
     let isVerified = false;
 
-    // 1. Verify against explicit secret parameter (e.g. from registration/setup flow)
+    // 1. Verify against explicit secret parameter
     if (secret) {
       isVerified = verifyTotpCode(code, secret);
     }
 
     // 2. If not verified by secret param, verify against stored MFA factor in PostgreSQL
     if (!isVerified) {
-      try {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: userId },
-          include: { mfaFactors: { orderBy: { createdAt: "desc" } } },
-        });
+      const dbUser = await prisma.user.findUnique({
+        where: { id: auth.userId },
+        include: { mfaFactors: { orderBy: { createdAt: "desc" } } },
+      });
 
-        if (dbUser && dbUser.mfaFactors.length > 0) {
-          const latestFactor = dbUser.mfaFactors[0];
-          isVerified = verifyTotpCode(code, latestFactor.secret);
+      if (dbUser && dbUser.mfaFactors.length > 0) {
+        const latestFactor = dbUser.mfaFactors[0];
+        isVerified = verifyTotpCode(code, latestFactor.secret);
 
-          if (isVerified) {
-            await prisma.$transaction([
-              prisma.user.update({
-                where: { id: dbUser.id },
-                data: { mfaEnabled: true },
-              }),
-              prisma.mfaFactor.update({
-                where: { id: latestFactor.id },
-                data: { verifiedAt: new Date() },
-              }),
-            ]);
-          }
+        if (isVerified) {
+          await prisma.$transaction([
+            prisma.user.update({
+              where: { id: dbUser.id },
+              data: { mfaEnabled: true },
+            }),
+            prisma.mfaFactor.update({
+              where: { id: latestFactor.id },
+              data: { verifiedAt: new Date() },
+            }),
+          ]);
         }
-      } catch (dbErr) {
-        console.warn("[MFA Verify API] DB connection offline during factor lookup.");
       }
     }
 
@@ -75,6 +71,9 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
+    if (error.name === "AuthError") {
+      return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: error.errors[0]?.message || "Invalid MFA code format" },

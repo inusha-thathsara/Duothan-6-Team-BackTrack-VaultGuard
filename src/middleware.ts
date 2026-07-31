@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifySessionToken } from "@/lib/auth/jwt";
 
 // Protected routes requiring authentication
 const PROTECTED_ROUTES = [
@@ -12,7 +13,7 @@ const PROTECTED_ROUTES = [
   "/operator",
 ];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionToken = request.cookies.get("vaultguard_session")?.value;
 
@@ -20,15 +21,32 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
 
-  // If attempting to access a protected route without a valid session cookie, redirect to login
-  if (isProtected && !sessionToken) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
+  let verifiedPayload = null;
+  if (sessionToken) {
+    verifiedPayload = await verifySessionToken(sessionToken);
   }
 
-  // If already logged in and visiting /login or /mfa without explicit MFA step-up request, redirect to /dashboard
-  if ((pathname === "/login" || pathname === "/mfa") && sessionToken && !request.nextUrl.searchParams.has("stepup")) {
+  // 1. Redirect unauthenticated users away from protected routes
+  if (isProtected && (!sessionToken || !verifiedPayload)) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    const response = NextResponse.redirect(loginUrl);
+    if (sessionToken && !verifiedPayload) {
+      response.cookies.delete("vaultguard_session");
+    }
+    return response;
+  }
+
+  // 2. Role-Based Access Control (RBAC): Protect /operator route
+  if (pathname.startsWith("/operator")) {
+    if (!verifiedPayload || verifiedPayload.role !== "SUPPORT_OPERATOR") {
+      // Non-operator user attempting to access operator panel -> Redirect to dashboard
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+
+  // 3. If already authenticated and visiting /login or /mfa, redirect to /dashboard
+  if ((pathname === "/login" || pathname === "/mfa") && verifiedPayload && !request.nextUrl.searchParams.has("stepup")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
