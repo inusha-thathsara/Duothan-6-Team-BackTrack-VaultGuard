@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import {
-  ShieldCheck, Smartphone, Laptop, Tablet, MapPin, CheckCircle2, Trash2, User, KeyRound, QrCode, Lock, RefreshCw, Check
+  ShieldCheck, Smartphone, Laptop, Tablet, MapPin, CheckCircle2, Trash2, User, KeyRound, QrCode, RefreshCw
 } from "lucide-react";
 
 export default function SecurityPage() {
@@ -71,7 +71,7 @@ export default function SecurityPage() {
       } else {
         addToast({ type: "error", title: "Update Failed", message: data.error || "Failed to update profile." });
       }
-    } catch (err) {
+    } catch {
       setIsUpdatingProfile(false);
       addToast({ type: "success", title: "Profile Saved", message: "Updated profile details." });
     }
@@ -100,7 +100,7 @@ export default function SecurityPage() {
       } else {
         addToast({ type: "error", title: "Password Update Failed", message: data.error || "Current password incorrect." });
       }
-    } catch (err) {
+    } catch {
       setIsUpdatingPassword(false);
       addToast({ type: "success", title: "Password Updated", message: "Security credentials saved." });
       setCurrentPassword("");
@@ -119,7 +119,7 @@ export default function SecurityPage() {
           qrCodeDataUrl: data.data.qrCodeDataUrl,
         });
       }
-    } catch (err) {
+    } catch {
       setMfaSetupData({ secret: "VG65M3KR9912ZERO", qrCodeDataUrl: "" });
     }
   };
@@ -147,7 +147,7 @@ export default function SecurityPage() {
       } else {
         addToast({ type: "error", title: "Verification Failed", message: data.error || "Invalid 2FA code." });
       }
-    } catch (err) {
+    } catch {
       setIsVerifyingTotp(false);
       addToast({ type: "success", title: "2FA Verified", message: "Authenticator code verified." });
       setShowMfaModal(false);

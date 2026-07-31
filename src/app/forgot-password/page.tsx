@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
       } else {
         setErrorMsg(data.error || "Failed to send reset link");
       }
-    } catch (err: any) {
+    } catch {
       setIsLoading(false);
       setErrorMsg("Network error. Please try again.");
     }

@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { transferSchema, billPaySchema, historyQuerySchema } from "@/lib/validation/payment.schema";
 import { repaymentSchema } from "@/lib/validation/loan.schema";
-import { checkTransferRisk } from "@/lib/services/payments/risk-check";
 import { TransferError } from "@/lib/services/payments/transfer.service";
 
 describe("Payment & Loan Validation Schemas & Services (Member 3)", () => {

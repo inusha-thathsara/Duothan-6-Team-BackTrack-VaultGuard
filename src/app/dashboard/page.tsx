@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Wallet, Eye, EyeOff, Send, CreditCard, Landmark, ShieldCheck,
+  Eye, EyeOff, Send, CreditCard, Landmark, ShieldCheck,
   Download, ArrowUpRight, ArrowDownLeft, FileText, ChevronRight,
 } from "lucide-react";
 

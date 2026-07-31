@@ -10,7 +10,6 @@ import {
   UserCheck,
   Search,
   ShieldAlert,
-  Lock,
 } from "lucide-react";
 
 interface CustomerAccountRecord {

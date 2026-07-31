@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         },
       });
     }
-  } catch (error) {
+  } catch {
     // Return JWT payload if DB query is temporarily unreachable
   }
 

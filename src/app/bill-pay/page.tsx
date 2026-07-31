@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useVaultGuard } from "@/context/VaultGuardContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -11,12 +11,10 @@ import { StepUpMfaModal } from "@/components/common/StepUpMfaModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
 import { Zap, Smartphone, CheckCircle2, RefreshCw } from "lucide-react";
 
 export default function BillPayPage() {
-  const router = useRouter();
   const { payees, addTransaction, isPaymentsDegraded, triggerStepUpMfa, addToast } = useVaultGuard();
 
   const [selectedBiller, setSelectedBiller] = useState(payees.find((p) => p.type === "BILLER")?.id || "pay_2");

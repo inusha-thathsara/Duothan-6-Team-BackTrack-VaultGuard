@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useVaultGuard } from "@/context/VaultGuardContext";
-import { Download, Printer, ShieldCheck, X, FileText, Calendar } from "lucide-react";
+import { Download, X, FileText } from "lucide-react";
 
 export const StatementModal: React.FC = () => {
   const { isStatementModalOpen, closeStatementModal, primaryAccount, transactions, addToast } = useVaultGuard();

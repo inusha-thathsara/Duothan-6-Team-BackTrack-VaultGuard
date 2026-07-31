@@ -10,7 +10,7 @@ import { ToastContainer } from "@/components/common/ToastContainer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+
 import { Separator } from "@/components/ui/separator";
 import { Shield, Lock, CheckCircle2, ArrowRight } from "lucide-react";
 
@@ -35,9 +35,10 @@ export default function LoginPage() {
       } else {
         setErrorMsg("Invalid credentials. Please verify your email and password.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setIsLoading(false);
-      setErrorMsg(err.message || "Failed to sign in. Please try again.");
+      const msg = err instanceof Error ? err.message : "Failed to sign in. Please try again.";
+      setErrorMsg(msg);
     }
   };
 

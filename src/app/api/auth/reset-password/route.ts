@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       { success: false, error: "Invalid or expired reset token" },
       { status: 400 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: error.errors[0]?.message || "Validation failed" },

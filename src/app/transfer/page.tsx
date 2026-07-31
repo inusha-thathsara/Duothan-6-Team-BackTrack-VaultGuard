@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Send, AlertTriangle, CheckCircle2, ArrowRight, RefreshCw, UserPlus, Lock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ArrowRight, RefreshCw, UserPlus, Lock } from "lucide-react";
 
 export default function TransferPage() {
   const router = useRouter();

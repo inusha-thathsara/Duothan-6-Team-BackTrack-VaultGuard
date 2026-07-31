@@ -62,9 +62,10 @@ export async function GET(request: NextRequest) {
         createdAt: user.createdAt,
       },
     });
-  } catch (error: any) {
-    if (error.name === "AuthError") {
-      return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
+  } catch (error: unknown) {
+    if (typeof error === "object" && error !== null && "name" in error && (error as { name: string }).name === "AuthError") {
+      const authErr = error as unknown as { message: string; statusCode: number };
+      return NextResponse.json({ success: false, error: authErr.message }, { status: authErr.statusCode });
     }
     return NextResponse.json(
       { success: false, error: "Failed to fetch user profile" },
@@ -92,7 +93,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const updateData: any = {};
+    const updateData: Record<string, string> = {};
     if (parsed.fullName) updateData.fullName = parsed.fullName;
     if (parsed.phoneNumber) updateData.phoneNumber = parsed.phoneNumber;
     if (parsed.email) updateData.email = parsed.email.toLowerCase();
@@ -127,9 +128,10 @@ export async function PATCH(request: NextRequest) {
         mfaEnabled: updated.mfaEnabled,
       },
     });
-  } catch (error: any) {
-    if (error.name === "AuthError") {
-      return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
+  } catch (error: unknown) {
+    if (typeof error === "object" && error !== null && "name" in error && (error as { name: string }).name === "AuthError") {
+      const authErr = error as unknown as { message: string; statusCode: number };
+      return NextResponse.json({ success: false, error: authErr.message }, { status: authErr.statusCode });
     }
     if (error instanceof z.ZodError) {
       return NextResponse.json(

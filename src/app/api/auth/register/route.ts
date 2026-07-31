@@ -102,16 +102,16 @@ export async function POST(request: NextRequest) {
       path: "/",
     });
 
-    return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: error.errors[0]?.message || "Validation failed" },
         { status: 400 }
       );
     }
+    const msg = error instanceof Error ? error.message : "Failed to create account in database";
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to create account in database" },
+      { success: false, error: msg },
       { status: 500 }
     );
   }

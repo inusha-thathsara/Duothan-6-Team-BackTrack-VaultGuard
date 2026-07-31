@@ -44,7 +44,7 @@ export async function verifySessionToken(token: string): Promise<TokenPayload | 
       fullName: (payload.fullName as string) || "Alex Perera",
       nationalId: (payload.nationalId as string) || "941820491V",
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 }

@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       resetToken: token, // Returned for dev testing & UI ease
       expiresInMinutes: 30,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: "Please enter a valid email address" },

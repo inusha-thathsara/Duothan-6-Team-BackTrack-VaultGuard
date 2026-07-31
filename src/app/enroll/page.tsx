@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Key, CheckCircle2, Smartphone, ArrowRight, RefreshCw, Lock, QrCode, ShieldCheck } from "lucide-react";
+import { Key, CheckCircle2, ArrowRight, RefreshCw, QrCode, ShieldCheck } from "lucide-react";
 
 export default function EnrollPage() {
   const router = useRouter();
@@ -83,7 +83,7 @@ export default function EnrollPage() {
         });
         setStep(3);
       }
-    } catch (err: any) {
+    } catch {
       setIsVerifying(false);
       setErrorMsg("Error registering account. Please try again.");
     }
@@ -102,7 +102,7 @@ export default function EnrollPage() {
       setIsVerifying(false);
       addToast({ type: "success", title: "Enrollment Complete", message: "Zero-Trust Identity & 2FA enrolled. Access granted." });
       router.push("/dashboard");
-    } catch (err) {
+    } catch {
       setIsVerifying(false);
       router.push("/dashboard");
     }
@@ -181,7 +181,7 @@ export default function EnrollPage() {
                     <ShieldCheck className="w-4 h-4 text-foreground" /> Account Security Features
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Submitting this form will register your account in VaultGuard's secure ledger and generate your 2FA TOTP QR Code.
+                    Submitting this form will register your account in VaultGuard&apos;s secure ledger and generate your 2FA TOTP QR Code.
                   </p>
                 </div>
                 <Button type="submit" disabled={isVerifying} className="w-full">

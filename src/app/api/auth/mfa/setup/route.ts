@@ -46,9 +46,10 @@ export async function POST(request: NextRequest) {
         account: dbUser.email,
       },
     });
-  } catch (error: any) {
-    if (error.name === "AuthError") {
-      return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
+  } catch (error: unknown) {
+    if (typeof error === "object" && error !== null && "name" in error && (error as { name: string }).name === "AuthError") {
+      const authErr = error as unknown as { message: string; statusCode: number };
+      return NextResponse.json({ success: false, error: authErr.message }, { status: authErr.statusCode });
     }
     return NextResponse.json(
       { success: false, error: "Failed to initialize 2FA setup" },
