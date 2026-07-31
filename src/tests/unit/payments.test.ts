@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { transferSchema, billPaySchema, historyQuerySchema } from "@/lib/validation/payment.schema";
 import { repaymentSchema } from "@/lib/validation/loan.schema";
+import { checkTransferRisk } from "@/lib/services/payments/risk-check";
+import { TransferError } from "@/lib/services/payments/transfer.service";
 
-describe("Payment & Loan Validation Schemas (Member 3)", () => {
+describe("Payment & Loan Validation Schemas & Services (Member 3)", () => {
   it("should validate valid transfer input", () => {
     const validData = {
       fromAccountId: "123e4567-e89b-12d3-a456-426614174000",
@@ -63,5 +65,11 @@ describe("Payment & Loan Validation Schemas (Member 3)", () => {
     const parsed = repaymentSchema.parse(repayment);
     expect(parsed.amount).toBe(500);
   });
-});
 
+  it("should instantiate TransferError with status code and error code", () => {
+    const err = new TransferError("Insufficient funds", "INSUFFICIENT_FUNDS", 400);
+    expect(err.message).toBe("Insufficient funds");
+    expect(err.code).toBe("INSUFFICIENT_FUNDS");
+    expect(err.statusCode).toBe(400);
+  });
+});

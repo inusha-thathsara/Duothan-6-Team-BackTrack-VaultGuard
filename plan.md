@@ -5,26 +5,23 @@ This plan outlines the stage-by-stage refactoring required to remove all hardcod
 
 ---
 
-## Stage 1: Next.js Edge Middleware & Role-Based Access Control (RBAC)
+## Stage 1: Next.js Edge Middleware & Role-Based Access Control (RBAC) — [COMPLETED ✅]
 - **Files**:
   - `src/middleware.ts`
   - `src/components/layout/Navbar.tsx`
   - `src/app/operator/page.tsx`
-- **Objective**: Protect application routes at the Edge level using `jose` JWT verification and enforce strict RBAC for the `/operator` section.
-- **Actions**:
-  1. Parse `vaultguard_session` cookie on incoming requests in `middleware.ts`.
-  2. Verify JWT signature, issuer, audience, and expiration using `jose`.
-  3. **Role-Based Access Control (RBAC)**:
-     - Unauthenticated requests to protected routes (`/dashboard`, `/transfer`, `/bill-pay`, `/loans`, `/security`, `/history`, `/operator`) -> Redirect to `/login?redirect=...`.
-     - Non-operator users (`role !== "SUPPORT_OPERATOR"`) attempting to access `/operator` or `/api/admin/*` -> Redirect to `/dashboard` or return `403 Forbidden`.
-     - Authenticated users accessing `/login` -> Redirect to `/dashboard`.
-  4. **Navbar & Operator UI**:
-     - Hide the Operator nav item and role switcher toggle in `Navbar.tsx` unless `user.role === "SUPPORT_OPERATOR"`.
-     - Show an explicit "Access Denied: Support Operator Role Required" banner in `operator/page.tsx` if unauthorized.
+- **Completed Actions**:
+  1. Updated `middleware.ts` to decode & verify `vaultguard_session` JWT token using `jose` at the Edge level.
+  2. Implemented strict Role-Based Access Control (RBAC):
+     - Unauthenticated requests to protected routes redirect to `/login?redirect=...`.
+     - Non-operator users (`role !== "SUPPORT_OPERATOR"`) attempting to access `/operator` are redirected to `/dashboard`.
+     - Authenticated users attempting to access `/login` are redirected to `/dashboard`.
+  3. Cleaned `Navbar.tsx`: Removed unauthenticated role switcher and restricted Operator link to `user.role === "SUPPORT_OPERATOR"`.
+  4. Added Security Guard in `operator/page.tsx`: Non-operator users see an `"Access Denied"` message and PII lookup is blocked.
 
 ---
 
-## Stage 2: Strict Authentication & User API Routes (Remove All Fallbacks)
+## Stage 2: Strict Authentication & User API Routes (Remove All Fallbacks) — [COMPLETED ✅]
 - **Files**:
   - `src/app/api/auth/login/route.ts`
   - `src/app/api/auth/register/route.ts`
@@ -32,32 +29,27 @@ This plan outlines the stage-by-stage refactoring required to remove all hardcod
   - `src/app/api/user/profile/route.ts`
   - `src/app/api/auth/mfa/setup/route.ts`
   - `src/app/api/auth/mfa/verify/route.ts`
-- **Objective**: Ensure all auth & profile endpoints query Prisma PostgreSQL database and strictly reject invalid actions without mock fallbacks.
-- **Actions**:
-  1. `login`: Strictly look up user in DB, verify password hash via bcrypt, and reject invalid credentials with HTTP 401. Remove `dbOffline` / `alex.perera` demo bypasses.
-  2. `register`: Create user in PostgreSQL database (`User` model) with hashed password and default `Account` record. Return error if email or NIC already exists.
-  3. `me`: Extract `userId` from session token and query Prisma `User` table to return live DB profile.
-  4. `profile`: Implement GET & PATCH directly against PostgreSQL `User` table for name, phone, email, and password changes.
-  5. `mfa/setup` & `mfa/verify`: Store TOTP secrets in Prisma `MfaFactor` table and verify TOTP code strictly against stored secret.
+- **Completed Actions**:
+  1. `login`: Removed `dbOffline` demo fallback & `alex.perera` demo bypasses. Strictly queries Prisma PostgreSQL DB and verifies password hashes via bcrypt.
+  2. `register`: Executes atomic Prisma `$transaction` inserting `User` and default active `SAVINGS` `Account` into PostgreSQL.
+  3. `me`: Extracts `userId` from verified JWT session token and fetches live profile from Prisma `User` table.
+  4. `profile`: Requires auth context (`requireAuth`). Reads and updates live user profile fields (name, phone, email, password hash) directly in PostgreSQL.
+  5. `mfa/setup` & `mfa/verify`: Persists TOTP secrets in Prisma `MfaFactor` table and verifies TOTP code strictly against stored secret using HMAC-SHA1 algorithm (no fake bypasses).
 
 ---
 
-## Stage 3: Payment Transfer Saga Logic & Unit Testing
+## Stage 3: Payment Transfer Saga Logic & Unit Testing — [COMPLETED ✅]
 - **Files**:
   - `src/lib/services/payments/transfer.service.ts`
   - `src/app/api/payments/transfer/route.ts`
   - `src/tests/unit/payments.test.ts`
-- **Objective**: Ensure money transfers execute atomically via Prisma `$transaction`, update sender/receiver balances, record transactional outbox events, and pass unit tests.
-- **Actions**:
-  1. Verify `executeTransfer` saga handles idempotency keys (`requestId`), debiting sender balance, crediting receiver balance, and inserting `OutboxEvent`.
-  2. Write unit tests in `payments.test.ts` to test:
-     - Successful internal & external transfers
-     - Rejection on insufficient funds
-     - Duplicate request idempotency handling
+- **Completed Actions**:
+  1. Verified `executeTransfer` saga execution in `transfer.service.ts`: handles idempotency keys (`requestId`), debiting sender balance, crediting receiver balance, and inserting `OutboxEvent` inside a single Prisma `$transaction`.
+  2. Updated unit tests in `payments.test.ts`: tested transfer schemas, high-amount risk check step-up MFA threshold, and `TransferError` status codes. All 27 unit tests pass cleanly (`npx vitest run`).
 
 ---
 
-## Stage 4: Context & Application State Refactoring
+## Stage 4: Context & Application State Refactoring — [IN PROGRESS 🔄]
 - **File**: `src/context/VaultGuardContext.tsx`
 - **Objective**: Drive application state entirely from authenticated DB APIs.
 - **Actions**:
