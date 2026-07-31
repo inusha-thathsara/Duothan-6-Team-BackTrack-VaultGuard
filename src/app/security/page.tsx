@@ -37,15 +37,34 @@ export default function SecurityPage() {
   const [totpCode, setTotpCode] = useState("");
   const [isVerifyingTotp, setIsVerifyingTotp] = useState(false);
 
+  const [liveSecurityEvents, setLiveSecurityEvents] = useState<Array<{ id: string; action: string; device: string; timestamp: string }>>([]);
+
   useEffect(() => {
     // Fetch profile from backend
     fetch("/api/user/profile")
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data) {
-          setFullName(json.data.fullName || "Alex Perera");
-          setEmail(json.data.email || "alex.perera@vaultguard.bank");
-          setPhone(json.data.phoneNumber || "+94 77 123 4567");
+          setFullName(json.data.fullName || "");
+          setEmail(json.data.email || "");
+          setPhone(json.data.phoneNumber || "");
+        }
+      })
+      .catch(() => {});
+
+    // Fetch real audit logs from backend
+    fetch("/api/audit/me?limit=10")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) {
+          setLiveSecurityEvents(
+            json.data.map((log: { id: string; action?: string; eventType?: string; ipAddress?: string; createdAt?: string }) => ({
+              id: log.id,
+              action: log.action || log.eventType || "Security Audit Event",
+              device: log.ipAddress || "Active Web Session",
+              timestamp: log.createdAt ? new Date(log.createdAt).toLocaleString() : "Recent",
+            }))
+          );
         }
       })
       .catch(() => {});
@@ -323,22 +342,29 @@ export default function SecurityPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="divide-y divide-border max-h-80 overflow-y-auto">
-                {securityEvents.map((evt) => (
-                  <div key={evt.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1 rounded bg-muted border border-border text-muted-foreground">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+              {liveSecurityEvents.length === 0 && securityEvents.length === 0 ? (
+                <div className="py-8 text-center text-xs text-muted-foreground">
+                  <ShieldCheck className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  <p>No security audit events logged yet for this account.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border max-h-80 overflow-y-auto">
+                  {(liveSecurityEvents.length > 0 ? liveSecurityEvents : securityEvents).map((evt) => (
+                    <div key={evt.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1 rounded bg-muted border border-border text-muted-foreground">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-foreground">{evt.action}</h4>
+                          <span className="text-[10px] text-muted-foreground">{evt.device}</span>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-medium text-foreground">{evt.action}</h4>
-                        <span className="text-[10px] text-muted-foreground">{evt.device}</span>
-                      </div>
+                      <span className="font-mono text-[10px] text-muted-foreground">{evt.timestamp}</span>
                     </div>
-                    <span className="font-mono text-[10px] text-muted-foreground">{evt.timestamp}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

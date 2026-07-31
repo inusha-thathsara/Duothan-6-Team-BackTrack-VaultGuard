@@ -51,13 +51,10 @@ export default function EnrollPage() {
       });
       const regData = await regRes.json();
 
-      if (!regRes.ok && !regData.success) {
-        // If user already exists, proceed to setup MFA for demo/testing
-        if (regRes.status !== 409) {
-          setErrorMsg(regData.error || "Registration failed");
-          setIsVerifying(false);
-          return;
-        }
+      if (!regRes.ok || !regData.success) {
+        setErrorMsg(regData.error || "Registration failed. Please check your credentials.");
+        setIsVerifying(false);
+        return;
       }
 
       if (regData.success && regData.data?.user) {

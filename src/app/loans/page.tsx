@@ -24,7 +24,7 @@ export default function LoansPage() {
 
   const [isRepayModalOpen, setIsRepayModalOpen] = useState(false);
   const [repayAmount, setRepayAmount] = useState("22000");
-  const [fromAccountId, setFromAccountId] = useState(primaryAccount?.id || "acc_sav_4821");
+  const [fromAccountId, setFromAccountId] = useState(primaryAccount?.id || accounts[0]?.id || "");
 
   const activeLoan = loans[0];
 
@@ -48,80 +48,100 @@ export default function LoansPage() {
           <p className="text-xs text-muted-foreground mt-0.5">Isolated Loans microservice with automated repayment schedules.</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-
-          {/* Main Loan Card */}
-          <Card className="lg:col-span-7 flex flex-col justify-between">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardDescription className="text-xs uppercase tracking-wider">{activeLoan.title}</CardDescription>
-                <Badge variant="secondary" className="font-mono text-[10px]">{activeLoan.loanNumber}</Badge>
-              </div>
-              <div className="space-y-0.5">
-                <span className="text-xs text-muted-foreground block">Outstanding Balance</span>
-                <span className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">
-                  LKR {activeLoan.outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Separator className="mb-4" />
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <span className="text-[11px] text-muted-foreground">Next Payment Due:</span>
-                  <strong className="block font-mono text-xs mt-0.5">
-                    01 Aug 2026 — LKR {activeLoan.nextPaymentAmount.toLocaleString()}
-                  </strong>
-                </div>
-                <Button onClick={() => setIsRepayModalOpen(true)} disabled={isPaymentsDegraded || activeLoan.status === "PAID_OFF"} size="sm">
-                  Repay Installment
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Schedule Card */}
-          <Card className="lg:col-span-5">
-            <CardHeader>
-              <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Installment Schedule</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {repaymentSchedule.slice(0, 4).map((sch) => (
-                <div key={sch.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border font-mono text-xs">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-muted-foreground">{sch.dueDate}</span>
-                  </div>
-                  <span className="font-semibold">LKR {sch.amount.toLocaleString()}</span>
-                  <Badge variant={sch.status === "PAID" ? "secondary" : "outline"} className="text-[10px] font-sans">
-                    {sch.status}
-                  </Badge>
-                </div>
-              ))}
-              <p className="text-center text-[11px] text-muted-foreground pt-1 border-t border-border">
-                Interest Rate: <strong className="font-mono text-foreground">{activeLoan.interestRate}% p.a.</strong>
+        {!activeLoan ? (
+          <Card>
+            <CardContent className="py-12 text-center text-xs text-muted-foreground space-y-2">
+              <Calendar className="w-10 h-10 mx-auto mb-2 opacity-40 text-muted-foreground" />
+              <h3 className="text-sm font-bold text-foreground">No Active Loans Found</h3>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                You currently have no active personal or post-disaster loans on this account.
               </p>
             </CardContent>
           </Card>
-        </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-        {/* Progress */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Repayment Progress</CardTitle>
-            <CardDescription>Automated outbox events notify audit services on repayment completion.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between text-xs font-medium mb-2">
-              <span className="text-muted-foreground">Completed Installments</span>
-              <span className="font-mono">{activeLoan.completedInstallments} of {activeLoan.termMonths} months</span>
+              {/* Main Loan Card */}
+              <Card className="lg:col-span-7 flex flex-col justify-between">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="text-xs uppercase tracking-wider">{activeLoan.title}</CardDescription>
+                    <Badge variant="secondary" className="font-mono text-[10px]">{activeLoan.loanNumber}</Badge>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-xs text-muted-foreground block">Outstanding Balance</span>
+                    <span className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">
+                      LKR {activeLoan.outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Separator className="mb-4" />
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[11px] text-muted-foreground">Next Payment Due:</span>
+                      <strong className="block font-mono text-xs mt-0.5">
+                        01 Aug 2026 — LKR {activeLoan.nextPaymentAmount.toLocaleString()}
+                      </strong>
+                    </div>
+                    <Button onClick={() => setIsRepayModalOpen(true)} disabled={isPaymentsDegraded || activeLoan.status === "PAID_OFF"} size="sm">
+                      Repay Installment
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Schedule Card */}
+              <Card className="lg:col-span-5">
+                <CardHeader>
+                  <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Installment Schedule</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {repaymentSchedule.slice(0, 4).map((sch) => (
+                    <div key={sch.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border font-mono text-xs">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-muted-foreground">{sch.dueDate}</span>
+                      </div>
+                      <span className="font-semibold">LKR {sch.amount.toLocaleString()}</span>
+                      <Badge variant={sch.status === "PAID" ? "secondary" : "outline"} className="text-[10px] font-sans">
+                        {sch.status}
+                      </Badge>
+                    </div>
+                  ))}
+                  <p className="text-center text-[11px] text-muted-foreground pt-1 border-t border-border">
+                    Interest Rate: <strong className="font-mono text-foreground">{activeLoan.interestRate}% p.a.</strong>
+                  </p>
+                </CardContent>
+              </Card>
             </div>
-            <div className="w-full h-2 rounded-full bg-muted border border-border overflow-hidden">
-              <div className="h-full bg-foreground/40 rounded-full transition-all duration-300"
-                style={{ width: `${(activeLoan.completedInstallments / activeLoan.termMonths) * 100}%` }} />
-            </div>
-          </CardContent>
-        </Card>
+
+            {/* Progress */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Repayment Progress</CardTitle>
+                    <CardDescription>Automated outbox events notify audit services on repayment completion.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-xs text-muted-foreground font-mono">
+                  <span>Completed Installments</span>
+                  <span>{activeLoan.completedInstallments} of {activeLoan.termMonths} months</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-foreground/60 rounded-full transition-all"
+                    style={{ width: `${(activeLoan.completedInstallments / activeLoan.termMonths) * 100}%` }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </main>
 
       {/* Repay Dialog */}

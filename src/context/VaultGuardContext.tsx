@@ -160,39 +160,8 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // User Session (Initialized as null to require explicit authentication)
   const [user, setUser] = useState<UserProfile | null>(null);
 
-  // Accounts
-  const [accounts, setAccounts] = useState<AccountItem[]>([
-    {
-      id: "acc_sav_4821",
-      accountNumber: "**** 4821",
-      type: "SAVINGS",
-      balance: 428650.0,
-      currency: "LKR",
-      status: "ACTIVE",
-      dailyLimit: 250000.0,
-      singleLimit: 100000.0,
-    },
-    {
-      id: "acc_chk_9102",
-      accountNumber: "**** 9102",
-      type: "CHECKING",
-      balance: 125000.0,
-      currency: "LKR",
-      status: "ACTIVE",
-      dailyLimit: 500000.0,
-      singleLimit: 250000.0,
-    },
-    {
-      id: "acc_fd_3341",
-      accountNumber: "**** 3341",
-      type: "FIXED_DEPOSIT",
-      balance: 1500000.0,
-      currency: "LKR",
-      status: "ACTIVE",
-      dailyLimit: 0,
-      singleLimit: 0,
-    },
-  ]);
+  // Accounts (initialized empty until restored from database)
+  const [accounts, setAccounts] = useState<AccountItem[]>([]);
 
   // Restore user session on mount via /api/auth/me and /api/user/profile
   useEffect(() => {
@@ -218,7 +187,7 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         accountNumber: acc.accountNumber,
                         type: acc.type || "SAVINGS",
                         balance: Number(acc.balance) || 0,
-                        currency: acc.currency || "USD",
+                        currency: acc.currency || "LKR",
                         status: acc.status || "ACTIVE",
                         dailyLimit: 250000.0,
                         singleLimit: 100000.0,
@@ -229,6 +198,80 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               }
             } catch {
               // Profile fetch fallback
+            }
+
+            // Fetch live payment history for authenticated user
+            try {
+              const txRes = await fetch("/api/payments/history?limit=10");
+              if (txRes.ok) {
+                const txJson = await txRes.json();
+                if (txJson.success && Array.isArray(txJson.data?.items)) {
+                  setTransactions(
+                    txJson.data.items.map((item: { id: string; requestId?: string; createdAt?: string; type?: string; description?: string; toAccount?: { accountNumber: string }; fromAccount?: { accountNumber: string }; amount: number | string; status?: string }) => ({
+                      id: item.id,
+                      requestId: item.requestId || `REQ-${item.id.substring(0, 8)}`,
+                      date: item.createdAt || new Date().toISOString(),
+                      type: item.type || "TRANSFER",
+                      description: item.description || "Funds Transfer",
+                      payeeName: item.toAccount?.accountNumber || item.description || "Transfer",
+                      accountNumber: item.fromAccount?.accountNumber || "",
+                      amount: Number(item.amount) || 0,
+                      fee: 0,
+                      status: item.status || "COMPLETED",
+                      sagaStatus: item.status || "COMPLETED",
+                      category: item.type === "INCOME" ? "Income" : "Transfer",
+                    }))
+                  );
+                } else {
+                  setTransactions([]);
+                }
+              }
+            } catch {
+              setTransactions([]);
+            }
+
+            // Fetch live user loans & repayment schedules
+            try {
+              const loanRes = await fetch("/api/loans");
+              if (loanRes.ok) {
+                const loanJson = await loanRes.json();
+                if (loanJson.success && Array.isArray(loanJson.data?.loans) && loanJson.data.loans.length > 0) {
+                  setLoans(
+                    loanJson.data.loans.map((l: { id: string; loanNumber?: string; title?: string; principalAmount: number | string; outstandingBalance: number | string; interestRate?: number | string; termMonths?: number; nextDueDate?: string; nextPaymentAmount?: number | string; status?: string }) => ({
+                      id: l.id,
+                      loanNumber: l.loanNumber || `LN-${l.id.substring(0, 5)}`,
+                      title: l.title || "Personal Loan",
+                      principalAmount: Number(l.principalAmount) || 0,
+                      outstandingBalance: Number(l.outstandingBalance) || 0,
+                      interestRate: Number(l.interestRate) || 0,
+                      termMonths: l.termMonths || 36,
+                      completedInstallments: 0,
+                      nextDueDate: l.nextDueDate || new Date().toISOString(),
+                      nextPaymentAmount: Number(l.nextPaymentAmount) || 0,
+                      status: (l.status as "ACTIVE" | "PAID_OFF") || "ACTIVE",
+                    }))
+                  );
+                  if (loanJson.data.loans[0]?.repaymentSchedule) {
+                    setRepaymentSchedule(
+                      loanJson.data.loans[0].repaymentSchedule.map((sch: { id: string; dueDate: string; amount: number | string; status?: string; paidAt?: string }) => ({
+                        id: sch.id,
+                        dueDate: sch.dueDate,
+                        amount: Number(sch.amount) || 0,
+                        status: (sch.status as "PAID" | "UPCOMING" | "OVERDUE") || "UPCOMING",
+                        paidAt: sch.paidAt,
+                      }))
+                    );
+                  } else {
+                    setRepaymentSchedule([]);
+                  }
+                } else {
+                  setLoans([]);
+                  setRepaymentSchedule([]);
+                }
+              }
+            } catch {
+              setLoans([]);
+              setRepaymentSchedule([]);
             }
           }
         }
@@ -250,187 +293,29 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     { id: "pay_4", name: "Kandy Supermarket Merchant", accountNumber: "****5510", bankCode: "COMM-042", type: "PERSON" as const },
   ]);
 
-  // Transactions
-  const [transactions, setTransactions] = useState<TransactionItem[]>([
-    {
-      id: "tx_1001",
-      requestId: "REQ-2065-9981-01",
-      date: "2026-07-29T10:14:00Z",
-      type: "TRANSFER",
-      description: "Transfer to Nimal Perera",
-      payeeName: "Nimal Perera",
-      accountNumber: "****7732",
-      amount: 12500.0,
-      fee: 50.0,
-      status: "COMPLETED",
-      sagaStatus: "COMPLETED",
-      category: "Personal Transfer",
-    },
-    {
-      id: "tx_1002",
-      requestId: "REQ-2065-9981-02",
-      date: "2026-07-28T16:30:00Z",
-      type: "BILL_PAY",
-      description: "CEB Electricity Bill Payment",
-      payeeName: "CEB Electricity Board",
-      accountNumber: "CEB-883921",
-      amount: 4820.0,
-      fee: 0,
-      status: "COMPLETED",
-      sagaStatus: "COMPLETED",
-      category: "Utilities",
-    },
-    {
-      id: "tx_1003",
-      requestId: "REQ-2065-9981-03",
-      date: "2026-07-27T09:00:00Z",
-      type: "TRANSFER",
-      description: "Emergency Salary Credit",
-      payeeName: "Apex Cyber Tech PLC",
-      accountNumber: "****0012",
-      amount: 185000.0,
-      fee: 0,
-      status: "COMPLETED",
-      sagaStatus: "COMPLETED",
-      category: "Income",
-    },
-    {
-      id: "tx_1004",
-      requestId: "REQ-2065-9981-04",
-      date: "2026-07-25T14:20:00Z",
-      type: "LOAN_REPAYMENT",
-      description: "Personal Loan Repayment LN-20941",
-      payeeName: "VaultGuard Loan Service",
-      accountNumber: "LN-20941",
-      amount: 22000.0,
-      fee: 0,
-      status: "COMPLETED",
-      sagaStatus: "COMPLETED",
-      category: "Loan Repayment",
-    },
-    {
-      id: "tx_1005",
-      requestId: "REQ-2065-9981-05",
-      date: "2026-07-24T11:05:00Z",
-      type: "TRANSFER",
-      description: "Transfer to Market Stall SME",
-      payeeName: "Kandy Supermarket Merchant",
-      accountNumber: "****5510",
-      amount: 3200.0,
-      fee: 25.0,
-      status: "PENDING",
-      sagaStatus: "DEBITED",
-      category: "Merchant",
-    },
-  ]);
+  // Transactions (default to empty array for newly created / authenticated accounts)
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
 
-  // Loans
-  const [loans, setLoans] = useState<LoanItem[]>([
-    {
-      id: "loan_20941",
-      loanNumber: "LN-20941",
-      title: "Post-Disaster Recovery Personal Loan",
-      principalAmount: 500000.0,
-      outstandingBalance: 312400.0,
-      interestRate: 8.5,
-      termMonths: 36,
-      completedInstallments: 14,
-      nextDueDate: "2026-08-01T00:00:00Z",
-      nextPaymentAmount: 22000.0,
-      status: "ACTIVE",
-    },
-  ]);
+  // Loans (default to empty array for newly created / authenticated accounts)
+  const [loans, setLoans] = useState<LoanItem[]>([]);
+  const [repaymentSchedule, setRepaymentSchedule] = useState<RepaymentScheduleItem[]>([]);
 
-  const [repaymentSchedule, setRepaymentSchedule] = useState<RepaymentScheduleItem[]>([
-    { id: "sch_1", dueDate: "2026-06-01", amount: 22000, status: "PAID", paidAt: "2026-06-01T08:12:00Z" },
-    { id: "sch_2", dueDate: "2026-07-01", amount: 22000, status: "PAID", paidAt: "2026-07-01T09:30:00Z" },
-    { id: "sch_3", dueDate: "2026-08-01", amount: 22000, status: "UPCOMING" },
-    { id: "sch_4", dueDate: "2026-09-01", amount: 22000, status: "UPCOMING" },
-    { id: "sch_5", dueDate: "2026-10-01", amount: 22000, status: "UPCOMING" },
-  ]);
-
-  // Trusted Devices
+  // Trusted Devices (reflects active authenticated browser session)
   const [trustedDevices, setTrustedDevices] = useState<TrustedDeviceItem[]>([
     {
-      id: "dev_1",
-      deviceLabel: "Pixel 9 Pro (This Device)",
-      userAgent: "Mozilla/5.0 (Linux; Android 15)",
-      ipAddress: "192.168.1.104",
-      location: "Colombo, LK",
-      trustedAt: "2026-07-20T21:04:00Z",
+      id: "dev_current",
+      deviceLabel: "Active Web Session (This Device)",
+      userAgent: typeof window !== "undefined" ? window.navigator.userAgent : "Browser Session",
+      ipAddress: "Active IP",
+      location: "Verified Session",
+      trustedAt: new Date().toISOString(),
       isCurrent: true,
       status: "ACTIVE",
     },
-    {
-      id: "dev_2",
-      deviceLabel: "MacBook Pro M3",
-      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X)",
-      ipAddress: "112.134.18.90",
-      location: "Colombo, LK",
-      trustedAt: "2026-07-19T08:12:00Z",
-      isCurrent: false,
-      status: "ACTIVE",
-    },
-    {
-      id: "dev_3",
-      deviceLabel: "iPad Air 5th Gen",
-      userAgent: "Mozilla/5.0 (iPad; CPU OS 18_0)",
-      ipAddress: "112.134.22.11",
-      location: "Kandy, LK",
-      trustedAt: "2026-07-10T14:22:00Z",
-      isCurrent: false,
-      status: "ACTIVE",
-    },
   ]);
 
-  // Security Events
-  const [securityEvents, setSecurityEvents] = useState<SecurityEventItem[]>([
-    {
-      id: "sec_1",
-      timestamp: "2026-07-29 10:14:02",
-      action: "Successful TOTP MFA Step-Up Authentication",
-      device: "Pixel 9 Pro",
-      ip: "192.168.1.104",
-      location: "Colombo, LK",
-      status: "SUCCESS",
-    },
-    {
-      id: "sec_2",
-      timestamp: "2026-07-29 09:30:11",
-      action: "Customer Session Authenticated via Identity Platform",
-      device: "Pixel 9 Pro",
-      ip: "192.168.1.104",
-      location: "Colombo, LK",
-      status: "SUCCESS",
-    },
-    {
-      id: "sec_3",
-      timestamp: "2026-07-28 16:30:00",
-      action: "Idempotent Payment Commitment (REQ-2065-9981-02)",
-      device: "Pixel 9 Pro",
-      ip: "192.168.1.104",
-      location: "Colombo, LK",
-      status: "SUCCESS",
-    },
-    {
-      id: "sec_4",
-      timestamp: "2026-07-25 11:20:00",
-      action: "New Device Registered & Hardware Passkey Bound",
-      device: "MacBook Pro M3",
-      ip: "112.134.18.90",
-      location: "Colombo, LK",
-      status: "SUCCESS",
-    },
-    {
-      id: "sec_5",
-      timestamp: "2026-07-18 22:41:00",
-      action: "Post-Malware Re-Enrollment Ceremony Completed",
-      device: "System",
-      ip: "10.0.0.1 (VPC Internal)",
-      location: "VaultGuard Cloud KMS",
-      status: "SUCCESS",
-    },
-  ]);
+  // Security Events (populated from PostgreSQL audit logs)
+  const [securityEvents, setSecurityEvents] = useState<SecurityEventItem[]>([]);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -567,6 +452,29 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           }
           if (body.data?.user) {
             setUser(body.data.user);
+            try {
+              const profRes = await fetch("/api/user/profile");
+              if (profRes.ok) {
+                const profBody = await profRes.json();
+                if (profBody.success && profBody.data?.accounts) {
+                  setAccounts(
+                    profBody.data.accounts.map((acc: { id: string; accountNumber: string; type?: string; balance: number | string; currency?: string; status?: string }) => ({
+                      id: acc.id,
+                      accountNumber: acc.accountNumber,
+                      type: acc.type || "SAVINGS",
+                      balance: Number(acc.balance) || 0,
+                      currency: acc.currency || "LKR",
+                      status: acc.status || "ACTIVE",
+                      dailyLimit: 250000.0,
+                      singleLimit: 100000.0,
+                    }))
+                  );
+                }
+              }
+            } catch {
+              // Ignore profile fetch failure
+            }
+
             addToast({
               type: "success",
               title: "Session Authenticated",
@@ -589,6 +497,10 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Ignore network failure on logout
     }
     setUser(null);
+    setAccounts([]);
+    setTransactions([]);
+    setLoans([]);
+    setRepaymentSchedule([]);
     addToast({
       type: "info",
       title: "Logged Out",
@@ -606,18 +518,19 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       sagaStatus: "COMPLETED",
     };
 
-    // Deduct from primary savings account
-    setAccounts((prev) =>
-      prev.map((acc) => {
-        if (acc.id === "acc_sav_4821") {
+    // Deduct from primary account
+    setAccounts((prev) => {
+      const targetId = accounts.find((a) => a.type === "CHECKING" || a.type === "SAVINGS")?.id || prev[0]?.id;
+      return prev.map((acc) => {
+        if (acc.id === targetId) {
           return {
             ...acc,
             balance: Math.max(0, acc.balance - (tx.amount + tx.fee)),
           };
         }
         return acc;
-      })
-    );
+      });
+    });
 
     setTransactions((prev) => [newTx, ...prev]);
 
