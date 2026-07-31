@@ -42,7 +42,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Issue JWT session token
+    // Check if user has MFA enabled
+    if (dbUser.mfaEnabled) {
+      const mfaPayload = {
+        userId: dbUser.id,
+        email: dbUser.email,
+        fullName: dbUser.fullName,
+        nationalId: dbUser.nationalId || "",
+        role: dbUser.role as "CUSTOMER" | "SUPPORT_OPERATOR",
+      };
+
+      const mfaPendingToken = await signSessionToken(mfaPayload);
+      const response = NextResponse.json({
+        success: true,
+        requiresMfa: true,
+        data: {
+          user: {
+            id: dbUser.id,
+            email: dbUser.email,
+            fullName: dbUser.fullName,
+            nationalId: dbUser.nationalId,
+            role: dbUser.role,
+            mfaEnabled: true,
+          },
+        },
+      });
+
+      response.cookies.set("vaultguard_mfa_pending", mfaPendingToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 10, // 10 minutes
+        path: "/",
+      });
+
+      return response;
+    }
+
+    // Issue full JWT session token for non-MFA users
     const userPayload = {
       userId: dbUser.id,
       email: dbUser.email,
@@ -54,6 +91,7 @@ export async function POST(request: NextRequest) {
     const token = await signSessionToken(userPayload);
     const response = NextResponse.json({
       success: true,
+      requiresMfa: false,
       data: {
         user: {
           id: dbUser.id,
@@ -61,7 +99,7 @@ export async function POST(request: NextRequest) {
           fullName: dbUser.fullName,
           nationalId: dbUser.nationalId,
           role: dbUser.role,
-          mfaEnabled: dbUser.mfaEnabled,
+          mfaEnabled: false,
           trustedDevice: true,
         },
         token,

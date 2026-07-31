@@ -28,10 +28,14 @@ export default function LoginPage() {
     setErrorMsg("");
 
     try {
-      const ok = await login(email, password);
+      const result = await login(email, password);
       setIsLoading(false);
-      if (ok) {
-        router.push("/mfa");
+      if (result.success) {
+        if (result.requiresMfa) {
+          router.push("/mfa");
+        } else {
+          router.push("/dashboard");
+        }
       } else {
         setErrorMsg("Invalid credentials. Please verify your email and password.");
       }

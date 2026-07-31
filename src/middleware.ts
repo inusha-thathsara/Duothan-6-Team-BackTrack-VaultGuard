@@ -45,9 +45,20 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 3. If already authenticated and visiting /login or /mfa, redirect to /dashboard
-  if ((pathname === "/login" || pathname === "/mfa") && verifiedPayload && !request.nextUrl.searchParams.has("stepup")) {
+  // 3. Page Access & Redirect Rules
+  const mfaPendingToken = request.cookies.get("vaultguard_mfa_pending")?.value;
+
+  if (pathname === "/login" && verifiedPayload) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  if (pathname === "/mfa") {
+    if (verifiedPayload && !request.nextUrl.searchParams.has("stepup")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    if (!verifiedPayload && !mfaPendingToken && !request.nextUrl.searchParams.has("stepup")) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
   }
 
   return NextResponse.next();

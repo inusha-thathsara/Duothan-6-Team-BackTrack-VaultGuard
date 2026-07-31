@@ -15,7 +15,7 @@ export async function getAuthContext(
   if (authHeader?.startsWith("Bearer ")) {
     token = authHeader.split(" ")[1];
   } else {
-    token = request.cookies.get("vaultguard_session")?.value;
+    token = request.cookies.get("vaultguard_session")?.value || request.cookies.get("vaultguard_mfa_pending")?.value;
   }
 
   if (!token) return null;

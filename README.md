@@ -123,7 +123,7 @@ This Phase 2 deliverable is a localized simulation engineered to prove the enter
 
 ```bash
 git clone https://github.com/inusha-thathsara/Duothan-6-Team-BackTrack-VaultGuard.git
-cd Duothan-6-Team-BackTrack-VaultGuard/vaultguard
+cd Duothan-6-Team-BackTrack-VaultGuard
 cp .env.example .env
 ```
 
@@ -140,7 +140,7 @@ npm install
 npx prisma db push
 
 # Seed demo users, accounts, payees, and active loans
-npx prisma db seed
+npm run db:seed
 ```
 
 ### 4. Start Development Server
@@ -155,24 +155,27 @@ Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
 ## 📡 Complete API Reference
 
-All protected endpoints accept `Authorization: Bearer <jwt_token>` and enforce rate limits.
+All protected endpoints accept session cookie / `Authorization: Bearer <jwt_token>` and enforce rate limits.
 
 ### 🔐 Auth & Identity
 - `POST /api/auth/register` — Customer registration matching backup identity records
 - `POST /api/auth/login` — User authentication returning JWT & MFA requirement
+- `POST /api/auth/mfa/setup` — Initialize TOTP MFA secret & QR code generation
 - `POST /api/auth/mfa/verify` — Verify 6-digit TOTP MFA challenge
-- `POST /api/auth/refresh` — Rotate refresh token for access token renewal
-- `POST /api/auth/logout` — Revoke refresh token and end session
+- `POST /api/auth/forgot-password` — Request password reset verification token
+- `POST /api/auth/reset-password` — Complete password reset with verification token
+- `GET /api/auth/me` — Authenticated session check & profile summary
+- `POST /api/auth/logout` — Revoke refresh token and clear session cookies
 
-### 🏦 Accounts & Statements
-- `GET /api/accounts` — List customer bank accounts and real-time balances
-- `GET /api/accounts/:id/statements` — Filtered transaction statements (`?from=&to=&page=&limit=`)
+### 👤 User Profile & Accounts
+- `GET /api/user/profile` — Fetch customer profile, preferences, and associated bank accounts
+- `PATCH /api/user/profile` — Update customer profile details and security settings
 
 ### 💸 Payments & Transfers
-- `POST /api/payments/transfer` — Idempotent funds transfer (Requires `x-request-id` header)
+- `POST /api/payments/transfer` — Idempotent funds transfer (Requires `x-request-id` header & Step-Up MFA for >$5,000)
 - `POST /api/payments/bill-pay` — Idempotent utility & biller payment
 - `GET /api/payments/history` — Paginated and searchable transaction history
-- `GET /api/payees` & `POST /api/payees` — Manage saved payees
+- `GET /api/payees` & `POST /api/payees` — Retrieve and manage saved payees
 
 ### 📊 Loans & Repayments
 - `GET /api/loans` — View active loans and repayment schedules
@@ -180,7 +183,7 @@ All protected endpoints accept `Authorization: Bearer <jwt_token>` and enforce r
 
 ### 🛡️ Audit, Health & Admin
 - `GET /api/audit/me` — Personal security activity timeline
-- `GET /api/admin/customers/:id` — Support Operator customer lookup (Audited with `admin.customer_lookup`)
+- `GET /api/admin/customers/:id` — Support Operator customer lookup (Audited with `admin.customer_lookup` & restricted to `SUPPORT_OPERATOR` role)
 - `GET /api/admin/dlq` — List failed Dead Letter Queue events
 - `POST /api/admin/dlq/replay` — Replay failed DLQ entry to EventBus
 - `GET /api/health` — Multi-service health monitoring & degraded mode check
@@ -189,13 +192,13 @@ All protected endpoints accept `Authorization: Bearer <jwt_token>` and enforce r
 
 ## 🧪 Testing & Quality Verification
 
-Run the automated test and validation commands:
+Run the automated test and validation commands (28 unit tests passing across 4 test suites):
 
 ```bash
 # 1. Run ESLint code quality check
 npm run lint
 
-# 2. Run TypeScript strict type check
+# 2. Run TypeScript strict type check (0 errors)
 npm run typecheck
 
 # 3. Run full Vitest unit & integration test suites
@@ -207,12 +210,13 @@ npm run test
 ## 🔐 Security & Resilience Controls
 
 1. **Password Security**: Bcrypt hashing with cost factor 12.
-2. **Stateless JWTs & Refresh Rotation**: Short-lived access tokens (15m) + single-use refresh token rotation.
-3. **Idempotency Protection**: `x-request-id` UUID header prevents double-debiting on network retries.
-4. **Step-Up Authorization**: High-risk operations (>$5000) require Step-Up MFA verification.
-5. **Sliding Window Rate Limiter**: 5 req/min (auth), 10 req/min (payments), 60 req/min (general).
-6. **PII Scrubbing & Audit Trails**: Automatic redaction of sensitive fields in JSON logs and immutable `AuditEvent` database logs.
-7. **Degraded Mode Protection**: Read-only fallback when payment gateway or ledger services degrade.
+2. **Stateless JWTs & Refresh Rotation**: Short-lived access tokens (15m) + single-use refresh token rotation with `jose` JWT verification at Next.js Edge Middleware (`middleware.ts`).
+3. **Role-Based Access Control (RBAC)**: Strict role enforcement (`SUPPORT_OPERATOR` required for `/operator` route and customer PII lookups).
+4. **Idempotency Protection**: `x-request-id` UUID header prevents double-debiting on network retries.
+5. **Step-Up Authorization**: High-risk operations (>$5,000) require Step-Up MFA verification.
+6. **Sliding Window Rate Limiter**: 5 req/min (auth), 10 req/min (payments), 60 req/min (general).
+7. **PII Scrubbing & Audit Trails**: Automatic redaction of sensitive fields in JSON logs and immutable `AuditEvent` database logs.
+8. **Degraded Mode Protection**: Read-only fallback when payment gateway or ledger services degrade.
 
 ---
 

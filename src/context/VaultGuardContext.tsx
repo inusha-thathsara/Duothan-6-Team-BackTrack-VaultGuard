@@ -105,7 +105,7 @@ interface VaultGuardContextType {
   isAuthenticated: boolean;
   activeRole: Role;
   switchRole: (role: Role) => void;
-  login: (email: string, pass: string) => Promise<boolean>;
+  login: (email: string, pass: string) => Promise<{ success: boolean; requiresMfa?: boolean }>;
   logout: () => void;
   
   // Degraded Mode (FR-08)
@@ -546,7 +546,7 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  const login = async (email: string, pass: string): Promise<boolean> => {
+  const login = async (email: string, pass: string): Promise<{ success: boolean; requiresMfa?: boolean }> => {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -556,19 +556,29 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       if (res.ok) {
         const body = await res.json();
-        if (body.success && body.data?.user) {
-          setUser(body.data.user);
-          addToast({
-            type: "success",
-            title: "Session Authenticated",
-            message: "Zero-Trust JWT session token issued by Auth Service.",
-          });
-          return true;
+        if (body.success) {
+          if (body.requiresMfa) {
+            addToast({
+              type: "info",
+              title: "MFA Verification Required",
+              message: "Please enter the 6-digit TOTP code from your authenticator app.",
+            });
+            return { success: true, requiresMfa: true };
+          }
+          if (body.data?.user) {
+            setUser(body.data.user);
+            addToast({
+              type: "success",
+              title: "Session Authenticated",
+              message: "Zero-Trust JWT session token issued by Auth Service.",
+            });
+            return { success: true, requiresMfa: false };
+          }
         }
       }
-      return false;
+      return { success: false };
     } catch {
-      return false;
+      return { success: false };
     }
   };
 
