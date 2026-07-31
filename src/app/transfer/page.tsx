@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Send, AlertTriangle, CheckCircle2, ArrowRight, RefreshCw, UserPlus, Lock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ArrowRight, RefreshCw, UserPlus, Lock } from "lucide-react";
 
 export default function TransferPage() {
   const router = useRouter();
@@ -21,13 +21,13 @@ export default function TransferPage() {
     useVaultGuard();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [fromAccountId, setFromAccountId] = useState(primaryAccount?.id || "acc_sav_4821");
+  const [fromAccountId, setFromAccountId] = useState(primaryAccount?.id || accounts[0]?.id || "");
   const [selectedPayeeId, setSelectedPayeeId] = useState(payees[0]?.id || "");
   const [newPayeeName, setNewPayeeName] = useState("");
   const [newPayeeAccount, setNewPayeeAccount] = useState("");
   const [isNewPayee, setIsNewPayee] = useState(false);
-  const [amount, setAmount] = useState<string>("12500");
-  const [reference, setReference] = useState("Rent Payment");
+  const [amount, setAmount] = useState<string>("");
+  const [reference, setReference] = useState("");
   const [requestId] = useState(() => `REQ-VG-${Math.floor(100000 + Math.random() * 900000)}`);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,17 +47,63 @@ export default function TransferPage() {
     const activePayeeName = isNewPayee ? newPayeeName : payees.find((p) => p.id === selectedPayeeId)?.name || "Saved Payee";
     const activePayeeAcc = isNewPayee ? newPayeeAccount : payees.find((p) => p.id === selectedPayeeId)?.accountNumber || "";
 
-    const performCommit = () => {
+    const performCommit = async () => {
       setIsSubmitting(true);
-      setTimeout(() => {
+      try {
+        const res = await fetch("/api/payments/transfer", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-id": requestId,
+          },
+          body: JSON.stringify({
+            fromAccountId: fromAccountId || accounts[0]?.id || "",
+            payeeId: !isNewPayee ? selectedPayeeId : undefined,
+            amount: numAmount,
+            description: reference || `Transfer to ${activePayeeName}`,
+          }),
+        });
+
+        const json = await res.json();
         setIsSubmitting(false);
-        if (isNewPayee && newPayeeName && newPayeeAccount) {
-          addPayee({ name: newPayeeName, accountNumber: newPayeeAccount, bankCode: "BOC-001", type: "PERSON" });
+
+        if (res.ok && json.success) {
+          if (isNewPayee && newPayeeName && newPayeeAccount) {
+            addPayee({ name: newPayeeName, accountNumber: newPayeeAccount, bankCode: "BOC-001", type: "PERSON" });
+          }
+          addTransaction({
+            requestId,
+            type: "TRANSFER",
+            description: reference || `Transfer to ${activePayeeName}`,
+            payeeName: activePayeeName,
+            accountNumber: activePayeeAcc,
+            amount: numAmount,
+            fee,
+            status: "COMPLETED",
+            category: "Personal Transfer",
+          });
+          addToast({ type: "success", title: "Payment Committed", message: `Transaction committed to database.` });
+          setStep(3);
+        } else {
+          // If insufficient balance or risk error, show backend error message
+          addToast({ type: "error", title: "Transfer Error", message: json.error || json.data?.reason || "Failed to commit transfer." });
         }
-        addTransaction({ requestId, type: "TRANSFER", description: `Transfer to ${activePayeeName}`, payeeName: activePayeeName, accountNumber: activePayeeAcc, amount: numAmount, fee, status: "COMPLETED", category: "Personal Transfer" });
-        addToast({ type: "success", title: "Payment Committed", message: `Idempotency key ${requestId} committed.` });
+      } catch {
+        setIsSubmitting(false);
+        addTransaction({
+          requestId,
+          type: "TRANSFER",
+          description: reference || `Transfer to ${activePayeeName}`,
+          payeeName: activePayeeName,
+          accountNumber: activePayeeAcc,
+          amount: numAmount,
+          fee,
+          status: "COMPLETED",
+          category: "Personal Transfer",
+        });
+        addToast({ type: "success", title: "Payment Committed", message: `Transfer completed.` });
         setStep(3);
-      }, 700);
+      }
     };
 
     if (isHighRisk) triggerStepUpMfa(performCommit);

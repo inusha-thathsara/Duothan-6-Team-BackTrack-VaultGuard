@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ShieldCheck, Server, Lock } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 export const Footer: React.FC = () => {
   return (

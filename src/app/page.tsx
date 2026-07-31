@@ -7,9 +7,7 @@ import { Footer } from "@/components/layout/Footer";
 import { DegradedBanner } from "@/components/common/DegradedBanner";
 import { ToastContainer } from "@/components/common/ToastContainer";
 import {
-  Shield,
   Lock,
-  Server,
   Zap,
   ArrowRight,
   ShieldCheck,
@@ -17,7 +15,6 @@ import {
   Key,
   Layers,
   Database,
-  CheckCircle2
 } from "lucide-react";
 
 export default function LandingPage() {

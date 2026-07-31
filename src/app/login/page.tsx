@@ -10,25 +10,40 @@ import { ToastContainer } from "@/components/common/ToastContainer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+
 import { Separator } from "@/components/ui/separator";
 import { Shield, Lock, CheckCircle2, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useVaultGuard();
-  const [email, setEmail] = useState("alex.perera@vaultguard.bank");
-  const [password, setPassword] = useState("securepass");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(async () => {
-      const ok = await login(email, password);
+    setErrorMsg("");
+
+    try {
+      const result = await login(email, password);
       setIsLoading(false);
-      if (ok) router.push("/mfa");
-    }, 500);
+      if (result.success) {
+        if (result.requiresMfa) {
+          router.push("/mfa");
+        } else {
+          router.push("/dashboard");
+        }
+      } else {
+        setErrorMsg("Invalid credentials. Please verify your email and password.");
+      }
+    } catch (err: unknown) {
+      setIsLoading(false);
+      const msg = err instanceof Error ? err.message : "Failed to sign in. Please try again.";
+      setErrorMsg(msg);
+    }
   };
 
   return (
@@ -70,10 +85,21 @@ export default function LoginPage() {
 
           {/* Right Form Panel */}
           <div className="md:col-span-7 p-6 sm:p-8 bg-card flex flex-col justify-center">
-            <div className="mb-5">
-              <h3 className="text-base font-semibold text-foreground">Enter Credentials</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Use your Customer ID or Email</p>
+            <div className="mb-5 flex justify-between items-start">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Enter Credentials</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Use your Customer ID or Email</p>
+              </div>
+              <Link href="/enroll" className="text-xs text-primary hover:underline">
+                New User? Enroll
+              </Link>
             </div>
+
+            {errorMsg && (
+              <div className="p-3 mb-4 rounded bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+                {errorMsg}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
@@ -86,7 +112,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="alex.perera@vaultguard.bank"
+                  placeholder="customer@vaultguard.bank"
                 />
               </div>
 
@@ -95,8 +121,8 @@ export default function LoginPage() {
                   <Label htmlFor="password" className="text-xs uppercase tracking-wider">
                     Password
                   </Label>
-                  <Link href="/enroll" className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">
-                    Re-Enroll?
+                  <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">
+                    Forgot Password?
                   </Link>
                 </div>
                 <Input
@@ -112,6 +138,12 @@ export default function LoginPage() {
                 {isLoading ? "Authenticating..." : "Continue to MFA Challenge"}
                 <ArrowRight className="w-4 h-4" />
               </Button>
+
+              <div className="text-center pt-1">
+                <Link href="/enroll" className="text-xs text-muted-foreground hover:text-foreground">
+                  Need to re-enroll security keys?
+                </Link>
+              </div>
 
               <Separator />
               <p className="text-[11px] text-muted-foreground text-center flex items-center justify-center gap-1.5">

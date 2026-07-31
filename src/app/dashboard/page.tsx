@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Wallet, Eye, EyeOff, Send, CreditCard, Landmark, ShieldCheck,
+  Eye, EyeOff, Send, CreditCard, Landmark, ShieldCheck,
   Download, ArrowUpRight, ArrowDownLeft, FileText, ChevronRight,
 } from "lucide-react";
 
@@ -42,10 +42,10 @@ export default function DashboardPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-              Welcome back, {user?.fullName || "Customer"}
+              Welcome back, {user?.fullName || "---"}
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-              Account ID: {user?.nationalId || "NAT-99401"} · Zero-Trust Session Active
+              User: {user?.email || "---"} · Zero-Trust Session Active
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={openStatementModal}>
@@ -68,14 +68,14 @@ export default function DashboardPage() {
               </div>
               <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight pt-1">
                 {showBalance
-                  ? `LKR ${primaryAccount?.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                  ? (primaryAccount ? `LKR ${primaryAccount.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "LKR ---")
                   : "LKR ••••••••"}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="secondary" className="font-mono text-[10px]">Primary Checking</Badge>
-                <span>{primaryAccount?.accountNumber}</span>
+                <Badge variant="secondary" className="font-mono text-[10px]">Primary Account</Badge>
+                <span>{primaryAccount?.accountNumber || "---"}</span>
                 <span>·</span>
                 <span>Domain Isolated</span>
               </div>
@@ -138,32 +138,41 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Accounts */}
+        {/* All Accounts Summary */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold">Banking Accounts</h2>
-            <span className="text-xs text-muted-foreground">3 Domain-Isolated Accounts</span>
+            <h2 className="text-sm font-semibold tracking-tight">Your Bank Accounts</h2>
+            <span className="text-xs text-muted-foreground font-mono">{accounts.length} Active Domain Schemas</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {accounts.map((acc) => (
-              <Card key={acc.id}>
-                <CardContent className="pt-5">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{acc.type}</span>
-                    <Badge variant="secondary" className="text-[10px] font-mono">{acc.status}</Badge>
-                  </div>
-                  <div className="font-mono text-xs text-muted-foreground">{acc.accountNumber}</div>
-                  <div className="text-xl font-bold font-mono mt-2">
-                    {showBalance ? `LKR ${acc.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "LKR ••••••"}
-                  </div>
-                  <Separator className="my-3" />
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>Limit: LKR {acc.dailyLimit.toLocaleString()}</span>
-                    <Link href="/history" className="hover:text-foreground underline-offset-4 hover:underline">Activity</Link>
-                  </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {accounts.length === 0 ? (
+              <Card className="col-span-full">
+                <CardContent className="py-6 text-center text-xs text-muted-foreground">
+                  No active accounts found (---).
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              accounts.map((acc) => (
+                <Card key={acc.id} className="relative overflow-hidden">
+                  <CardContent className="pt-5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{acc.type}</span>
+                      <Badge variant="secondary" className="text-[10px] font-mono">{acc.status}</Badge>
+                    </div>
+                    <div className="font-mono text-xs text-muted-foreground">{acc.accountNumber || "---"}</div>
+                    <div className="text-xl font-bold font-mono mt-2">
+                      {showBalance ? `LKR ${acc.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "LKR ••••••"}
+                    </div>
+                    <Separator className="my-3" />
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>Limit: LKR {acc.dailyLimit.toLocaleString()}</span>
+                      <Link href="/history" className="hover:text-foreground underline-offset-4 hover:underline">Activity</Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </div>
 
@@ -181,34 +190,42 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="divide-y divide-border">
-              {transactions.slice(0, 5).map((tx) => (
-                <div key={tx.id} onClick={() => setSelectedTx(tx)}
-                  className="py-3 flex items-center justify-between gap-4 hover:bg-muted/50 px-2 rounded-lg cursor-pointer transition-colors -mx-2">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${tx.category === "Income" ? "bg-muted text-foreground" : "bg-muted/50 text-muted-foreground border border-border"}`}>
-                      {tx.category === "Income" ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-semibold">{tx.description}</h3>
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5 font-mono">
-                        <span>{tx.date.substring(0, 10)}</span>
-                        <span>·</span>
-                        <span>{tx.requestId}</span>
+            {transactions.length === 0 ? (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="font-medium text-foreground">No recent transactions</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Your real-time transaction ledger will appear here.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {transactions.slice(0, 5).map((tx) => (
+                  <div key={tx.id} onClick={() => setSelectedTx(tx)}
+                    className="py-3 flex items-center justify-between gap-4 hover:bg-muted/50 px-2 rounded-lg cursor-pointer transition-colors -mx-2">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${tx.category === "Income" ? "bg-muted text-foreground" : "bg-muted/50 text-muted-foreground border border-border"}`}>
+                        {tx.category === "Income" ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-semibold">{tx.description}</h3>
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5 font-mono">
+                          <span>{tx.date.substring(0, 10)}</span>
+                          <span>·</span>
+                          <span>{tx.requestId}</span>
+                        </div>
                       </div>
                     </div>
+                    <div className="text-right">
+                      <span className="text-xs font-bold font-mono block">
+                        {tx.category === "Income" ? "+" : "-"} LKR {tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                      <Badge variant={tx.status === "COMPLETED" ? "secondary" : "outline"} className="text-[10px] mt-0.5">
+                        {tx.status}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs font-bold font-mono block">
-                      {tx.category === "Income" ? "+" : "-"} LKR {tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                    <Badge variant={tx.status === "COMPLETED" ? "secondary" : "outline"} className="text-[10px] mt-0.5">
-                      {tx.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

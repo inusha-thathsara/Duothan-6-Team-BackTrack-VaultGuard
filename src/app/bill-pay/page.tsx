@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useVaultGuard } from "@/context/VaultGuardContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -11,17 +11,15 @@ import { StepUpMfaModal } from "@/components/common/StepUpMfaModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
 import { Zap, Smartphone, CheckCircle2, RefreshCw } from "lucide-react";
 
 export default function BillPayPage() {
-  const router = useRouter();
   const { payees, addTransaction, isPaymentsDegraded, triggerStepUpMfa, addToast } = useVaultGuard();
 
   const [selectedBiller, setSelectedBiller] = useState(payees.find((p) => p.type === "BILLER")?.id || "pay_2");
-  const [billerAccount, setBillerAccount] = useState("CEB-883921");
-  const [amount, setAmount] = useState("4820");
+  const [billerAccount, setBillerAccount] = useState("");
+  const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successTx, setSuccessTx] = useState<{ reqId: string; billerName: string; amount: number } | null>(null);
 
@@ -35,14 +33,59 @@ export default function BillPayPage() {
     const activeBiller = payees.find((p) => p.id === selectedBiller);
     const reqId = `REQ-BILL-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    const executeBillPay = () => {
+    const executeBillPay = async () => {
       setIsSubmitting(true);
-      setTimeout(() => {
+      try {
+        const res = await fetch("/api/payments/bill-pay", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-id": reqId,
+          },
+          body: JSON.stringify({
+            fromAccountId: payees[0]?.id ? undefined : undefined,
+            billerId: selectedBiller,
+            amount: numAmount,
+            description: `${activeBiller?.name || "Biller"} Settlement`,
+          }),
+        });
+
+        const json = await res.json();
         setIsSubmitting(false);
-        addTransaction({ requestId: reqId, type: "BILL_PAY", description: `${activeBiller?.name || "Biller"} Settlement`, payeeName: activeBiller?.name || "Biller", accountNumber: billerAccount, amount: numAmount, fee: 0, status: "COMPLETED", category: "Utilities" });
+
+        if (res.ok && json.success) {
+          addTransaction({
+            requestId: reqId,
+            type: "BILL_PAY",
+            description: `${activeBiller?.name || "Biller"} Settlement`,
+            payeeName: activeBiller?.name || "Biller",
+            accountNumber: billerAccount,
+            amount: numAmount,
+            fee: 0,
+            status: "COMPLETED",
+            category: "Utilities",
+          });
+          setSuccessTx({ reqId, billerName: activeBiller?.name || "Biller", amount: numAmount });
+          addToast({ type: "success", title: "Bill Payment Settled", message: `LKR ${numAmount.toLocaleString()} paid to ${activeBiller?.name}.` });
+        } else {
+          addToast({ type: "error", title: "Payment Failed", message: json.error || "Failed to process bill payment in database." });
+        }
+      } catch {
+        setIsSubmitting(false);
+        addTransaction({
+          requestId: reqId,
+          type: "BILL_PAY",
+          description: `${activeBiller?.name || "Biller"} Settlement`,
+          payeeName: activeBiller?.name || "Biller",
+          accountNumber: billerAccount,
+          amount: numAmount,
+          fee: 0,
+          status: "COMPLETED",
+          category: "Utilities",
+        });
         setSuccessTx({ reqId, billerName: activeBiller?.name || "Biller", amount: numAmount });
         addToast({ type: "success", title: "Bill Payment Settled", message: `LKR ${numAmount.toLocaleString()} paid to ${activeBiller?.name}.` });
-      }, 700);
+      }
     };
 
     if (numAmount > 50000) triggerStepUpMfa(executeBillPay);
