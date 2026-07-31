@@ -45,7 +45,7 @@ export default function DashboardPage() {
               Welcome back, {user?.fullName || "Customer"}
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-              Account ID: {user?.nationalId || "NAT-99401"} · Zero-Trust Session Active
+              User: {user?.email || "Authenticated"} · Zero-Trust Session Active
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={openStatementModal}>
