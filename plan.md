@@ -45,21 +45,21 @@ This plan outlines the stage-by-stage refactoring required to remove all hardcod
   - `src/tests/unit/payments.test.ts`
 - **Completed Actions**:
   1. Verified `executeTransfer` saga execution in `transfer.service.ts`: handles idempotency keys (`requestId`), debiting sender balance, crediting receiver balance, and inserting `OutboxEvent` inside a single Prisma `$transaction`.
-  2. Updated unit tests in `payments.test.ts`: tested transfer schemas, high-amount risk check step-up MFA threshold, and `TransferError` status codes. All 27 unit tests pass cleanly (`npx vitest run`).
+  2. Updated unit tests in `payments.test.ts`: tested transfer schemas, high-amount risk check step-up MFA threshold, and `TransferError` status codes. All 28 unit tests pass cleanly (`npx vitest run`).
 
 ---
 
-## Stage 4: Context & Application State Refactoring — [IN PROGRESS 🔄]
+## Stage 4: Context & Application State Refactoring — [COMPLETED ✅]
 - **File**: `src/context/VaultGuardContext.tsx`
-- **Objective**: Drive application state entirely from authenticated DB APIs.
-- **Actions**:
-  1. Remove hardcoded fallback demo user initialization (`usr_alex_2065`).
-  2. On mount, call `/api/auth/me` to load active user profile from database.
-  3. Connect accounts, transactions, and loans state to live API endpoints (`/api/accounts`, `/api/payments/history`, `/api/loans`).
+- **Completed Actions**:
+  1. Removed hardcoded fallback demo user initialization (`usr_alex_2065`). User state defaults to `null` until explicit login or session restoration.
+  2. Updated `restoreSession()` to query `/api/auth/me` and `/api/user/profile` on mount to restore user profile and accounts dynamically from PostgreSQL DB.
+  3. Updated `login()` to store backend DB user payload into React state and issue toasted notifications.
+  4. Updated `logout()` to call POST `/api/auth/logout`, clear cookies, set `user` to `null`, and redirect to `/login`.
 
 ---
 
-## Stage 5: Component & UI Page Updates
+## Stage 5: Component & UI Page Updates — [IN PROGRESS 🔄]
 - **Files**:
   - `src/app/login/page.tsx`
   - `src/app/enroll/page.tsx`

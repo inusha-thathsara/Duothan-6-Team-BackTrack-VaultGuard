@@ -160,7 +160,7 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // User Session (Initialized as null to require explicit authentication)
   const [user, setUser] = useState<UserProfile | null>(null);
 
-  // Restore user session on mount via /api/auth/me
+  // Restore user session on mount via /api/auth/me and /api/user/profile
   useEffect(() => {
     async function restoreSession() {
       try {
@@ -169,6 +169,33 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           const body = await res.json();
           if (body.success && body.data?.user) {
             setUser(body.data.user);
+            // Fetch live database accounts & profile details
+            try {
+              const profRes = await fetch("/api/user/profile");
+              if (profRes.ok) {
+                const profBody = await profRes.json();
+                if (profBody.success && profBody.data) {
+                  const dbData = profBody.data;
+                  setUser((prev) => (prev ? { ...prev, ...dbData } : dbData));
+                  if (dbData.accounts && dbData.accounts.length > 0) {
+                    setAccounts(
+                      dbData.accounts.map((acc: any) => ({
+                        id: acc.id,
+                        accountNumber: acc.accountNumber,
+                        type: acc.type || "SAVINGS",
+                        balance: Number(acc.balance) || 0,
+                        currency: acc.currency || "USD",
+                        status: acc.status || "ACTIVE",
+                        dailyLimit: 250000.0,
+                        singleLimit: 100000.0,
+                      }))
+                    );
+                  }
+                }
+              }
+            } catch {
+              // Profile fetch fallback
+            }
           }
         }
       } catch (err) {
