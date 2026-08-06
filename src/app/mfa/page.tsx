@@ -89,7 +89,7 @@ export default function MfaPage() {
 
       if (res.ok) {
         addToast({ type: "success", title: "MFA Verified", message: "Identity token issued. Welcome to VaultGuard." });
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       } else {
         addToast({ type: "error", title: "Verification Failed", message: "Invalid or expired TOTP code." });
       }
