@@ -49,6 +49,16 @@ async function processOutboxBatch(): Promise<void> {
             ?.correlationId as string | undefined,
         };
 
+        // Check if we should simulate processing failure (e.g. for testing purposes)
+        const payloadObj = event.payload as Record<string, unknown> || {};
+        const description = (payloadObj.description || "") as string;
+        const title = (payloadObj.title || "") as string;
+        const lowercaseDesc = (description + " " + title).toLowerCase();
+        
+        if (lowercaseDesc.includes("fail") || lowercaseDesc.includes("dlq")) {
+          throw new Error("Simulated event processing failure: Description contains 'fail' or 'dlq'");
+        }
+
         // Publish to EventBus (Pub/Sub analogue)
         eventBus.publish(eventPayload);
 
