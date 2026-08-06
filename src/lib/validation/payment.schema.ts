@@ -10,6 +10,7 @@ export const transferSchema = z.object({
     .max(1_000_000, "Amount exceeds maximum allowed"),
   currency: z.string().length(3).default("USD"),
   description: z.string().max(500).optional(),
+  mfaVerified: z.boolean().optional(),
 }).refine(
   (data) => data.toAccountId || data.payeeId,
   { message: "Either toAccountId or payeeId must be provided", path: ["toAccountId"] }
@@ -24,6 +25,7 @@ export const billPaySchema = z.object({
     .max(1_000_000, "Amount exceeds maximum allowed"),
   currency: z.string().length(3).default("USD"),
   description: z.string().max(500).optional(),
+  mfaVerified: z.boolean().optional(),
 });
 
 export const historyQuerySchema = z.object({

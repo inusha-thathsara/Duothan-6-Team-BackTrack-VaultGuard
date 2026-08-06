@@ -33,7 +33,7 @@ export default function BillPayPage() {
     const activeBiller = payees.find((p) => p.id === selectedBiller);
     const reqId = `REQ-BILL-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    const executeBillPay = async () => {
+    const executeBillPay = async (mfaPassed = false) => {
       setIsSubmitting(true);
       try {
         const sourceAccountId = primaryAccount?.id || accounts[0]?.id || "";
@@ -42,12 +42,14 @@ export default function BillPayPage() {
           headers: {
             "Content-Type": "application/json",
             "x-request-id": reqId,
+            ...(mfaPassed ? { "x-mfa-verified": "true" } : {}),
           },
           body: JSON.stringify({
             fromAccountId: sourceAccountId,
             billerId: selectedBiller,
             amount: numAmount,
             description: `${activeBiller?.name || "Biller"} Settlement`,
+            ...(mfaPassed ? { mfaVerified: true } : {}),
           }),
         });
 
@@ -68,6 +70,8 @@ export default function BillPayPage() {
           });
           setSuccessTx({ reqId, billerName: activeBiller?.name || "Biller", amount: numAmount });
           addToast({ type: "success", title: "Bill Payment Settled", message: `LKR ${numAmount.toLocaleString()} paid to ${activeBiller?.name}.` });
+        } else if (res.status === 403 || json.data?.requiresStepUpMfa) {
+          triggerStepUpMfa(() => executeBillPay(true));
         } else {
           const errMsg = typeof json.error === "string" ? json.error : json.error?.message || "Failed to process bill payment in database.";
           addToast({ type: "error", title: "Payment Failed", message: errMsg });
@@ -90,8 +94,8 @@ export default function BillPayPage() {
       }
     };
 
-    if (numAmount > 5000) triggerStepUpMfa(executeBillPay);
-    else executeBillPay();
+    if (numAmount > 5000) triggerStepUpMfa(() => executeBillPay(true));
+    else executeBillPay(false);
   };
 
   return (

@@ -30,7 +30,8 @@ export type TransferResult = {
 export async function executeTransfer(
   input: TransferInput,
   requestId: string,
-  userId: string
+  userId: string,
+  mfaVerified?: boolean
 ): Promise<TransferResult> {
   // ── Step 1: Idempotency check (FR-13) ──
   const { isDuplicate, existingTransaction } = await checkIdempotency(requestId);
@@ -62,6 +63,7 @@ export async function executeTransfer(
     fromAccountId: input.fromAccountId,
     amount: input.amount,
     userId,
+    mfaVerified,
   });
 
   if (!riskResult.approved) {

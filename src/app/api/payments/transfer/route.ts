@@ -34,7 +34,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const input = transferSchema.parse(body);
 
-    const result = await executeTransfer(input, requestId, auth.userId);
+    const isMfaVerified =
+      request.headers.get("x-mfa-verified") === "true" ||
+      request.cookies.get("vaultguard_mfa_verified")?.value === "true" ||
+      input.mfaVerified === true;
+
+    const result = await executeTransfer(input, requestId, auth.userId, isMfaVerified);
 
     // Step-up MFA required (FR-11)
     if (result.requiresStepUpMfa) {

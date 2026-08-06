@@ -50,7 +50,7 @@ export default function TransferPage() {
     const activePayeeName = isNewPayee ? newPayeeName : payees.find((p) => p.id === selectedPayeeId)?.name || "Saved Payee";
     const activePayeeAcc = isNewPayee ? newPayeeAccount : payees.find((p) => p.id === selectedPayeeId)?.accountNumber || "";
 
-    const performCommit = async () => {
+    const performCommit = async (mfaPassed = false) => {
       setIsSubmitting(true);
       try {
         const res = await fetch("/api/payments/transfer", {
@@ -58,12 +58,14 @@ export default function TransferPage() {
           headers: {
             "Content-Type": "application/json",
             "x-request-id": requestId,
+            ...(mfaPassed ? { "x-mfa-verified": "true" } : {}),
           },
           body: JSON.stringify({
             fromAccountId: fromAccountId || accounts[0]?.id || "",
             payeeId: !isNewPayee ? selectedPayeeId : undefined,
             amount: numAmount,
             description: reference || `Transfer to ${activePayeeName}`,
+            ...(mfaPassed ? { mfaVerified: true } : {}),
           }),
         });
 
@@ -88,7 +90,7 @@ export default function TransferPage() {
           addToast({ type: "success", title: "Payment Committed", message: `Transaction committed to database.` });
           setStep(3);
         } else if (res.status === 403 || json.data?.requiresStepUpMfa) {
-          triggerStepUpMfa(performCommit);
+          triggerStepUpMfa(() => performCommit(true));
         } else {
           // If insufficient balance or risk error, show backend error message
           const errMsg = typeof json.error === "string" ? json.error : json.error?.message || json.data?.reason || "Failed to commit transfer.";
@@ -112,8 +114,8 @@ export default function TransferPage() {
       }
     };
 
-    if (isHighRisk) triggerStepUpMfa(performCommit);
-    else performCommit();
+    if (isHighRisk) triggerStepUpMfa(() => performCommit(true));
+    else performCommit(false);
   };
 
   const steps = ["Transfer Details", "Review & Authorize", "Confirmation"];

@@ -27,7 +27,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const input = billPaySchema.parse(body);
 
-    const result = await executeBillPayment(input, requestId, auth.userId);
+    const isMfaVerified =
+      request.headers.get("x-mfa-verified") === "true" ||
+      request.cookies.get("vaultguard_mfa_verified")?.value === "true" ||
+      input.mfaVerified === true;
+
+    const result = await executeBillPayment(input, requestId, auth.userId, isMfaVerified);
 
     if (result.requiresStepUpMfa) {
       return NextResponse.json(

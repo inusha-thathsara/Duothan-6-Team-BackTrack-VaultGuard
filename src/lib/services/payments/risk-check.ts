@@ -35,8 +35,9 @@ export async function checkTransferRisk(params: {
   fromAccountId: string;
   amount: number;
   userId: string;
+  mfaVerified?: boolean;
 }): Promise<RiskCheckResult> {
-  const { fromAccountId, amount, userId } = params;
+  const { fromAccountId, amount, userId, mfaVerified } = params;
 
   // 1. Get account with limits
   let account = await prisma.account.findUnique({
@@ -118,7 +119,7 @@ export async function checkTransferRisk(params: {
   }
 
   // 5. Step-up MFA for high-risk transactions (FR-11)
-  if (amount > STEP_UP_MFA_THRESHOLD) {
+  if (amount > STEP_UP_MFA_THRESHOLD && !mfaVerified) {
     return {
       approved: true,
       requiresStepUpMfa: true,
