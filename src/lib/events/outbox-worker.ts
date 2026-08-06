@@ -56,7 +56,10 @@ async function processOutboxBatch(): Promise<void> {
         if (process.env.USE_PUBSUB === "true") {
           const { publishToPubSub } = await import("./pubsub-adapter");
           const topicName = process.env.PUBSUB_TOPIC || "vaultguard-events";
-          await publishToPubSub(topicName, eventPayload);
+          const success = await publishToPubSub(topicName, eventPayload);
+          if (!success) {
+            throw new Error("Failed to publish event to GCP Pub/Sub adapter");
+          }
         }
 
         // Mark as processed
