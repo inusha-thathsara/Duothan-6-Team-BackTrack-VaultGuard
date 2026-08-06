@@ -6,7 +6,9 @@ const MAX_RETRIES = Number(process.env.OUTBOX_MAX_RETRIES) || 3;
 const POLL_INTERVAL_MS = Number(process.env.OUTBOX_POLL_INTERVAL_MS) || 5000;
 const BATCH_SIZE = Number(process.env.OUTBOX_BATCH_SIZE) || 10;
 
-let workerInterval: ReturnType<typeof setInterval> | null = null;
+const globalForWorker = globalThis as unknown as {
+  outboxWorkerInterval: ReturnType<typeof setInterval> | undefined;
+};
 
 /**
  * Outbox Worker — Transactional Outbox pattern (FR-14a, FR-14b, §3.3).
@@ -119,8 +121,8 @@ async function processOutboxBatch(): Promise<void> {
  * Call once during application startup.
  */
 export function startOutboxWorker(): void {
-  if (workerInterval) {
-    console.warn("[OutboxWorker] Already running");
+  if (globalForWorker.outboxWorkerInterval) {
+    console.log("[OutboxWorker] Already running (persisted globally)");
     return;
   }
 
@@ -132,16 +134,16 @@ export function startOutboxWorker(): void {
   processOutboxBatch();
 
   // Recurring poll
-  workerInterval = setInterval(processOutboxBatch, POLL_INTERVAL_MS);
+  globalForWorker.outboxWorkerInterval = setInterval(processOutboxBatch, POLL_INTERVAL_MS);
 }
 
 /**
  * Stop the outbox worker.
  */
 export function stopOutboxWorker(): void {
-  if (workerInterval) {
-    clearInterval(workerInterval);
-    workerInterval = null;
+  if (globalForWorker.outboxWorkerInterval) {
+    clearInterval(globalForWorker.outboxWorkerInterval);
+    globalForWorker.outboxWorkerInterval = undefined;
     console.log("[OutboxWorker] Stopped");
   }
 }
