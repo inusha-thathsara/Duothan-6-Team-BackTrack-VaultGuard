@@ -73,6 +73,14 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
+    response.cookies.set("vaultguard_mfa_verified", "true", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 300, // 5 minutes step-up validity
+      path: "/",
+    });
+
     if (dbUser) {
       const { signSessionToken } = await import("@/lib/auth/jwt");
       const token = await signSessionToken({
