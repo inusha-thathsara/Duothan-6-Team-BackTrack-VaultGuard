@@ -6,6 +6,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { DegradedBanner } from "@/components/common/DegradedBanner";
 import { ToastContainer } from "@/components/common/ToastContainer";
+import { useVaultGuard } from "@/context/VaultGuardContext";
 import {
   Lock,
   Zap,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 
 export default function LandingPage() {
+  const { user } = useVaultGuard();
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground ">
       <DegradedBanner />
@@ -53,13 +55,16 @@ export default function LandingPage() {
                   <ArrowRight className="w-4 h-4" />
                 </Link>
 
-                <Link
-                  href="/recovery"
-                  className="px-5 py-2.5 rounded-lg bg-muted/50 hover:bg-slate-800 border border-border text-slate-200 font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-2"
-                >
-                  <Key className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>Account Recovery</span>
-                </Link>
+                {/* Only show Account Recovery when not logged in */}
+                {!user && (
+                  <Link
+                    href="/recovery"
+                    className="px-5 py-2.5 rounded-lg bg-muted/50 hover:bg-slate-800 border border-border text-slate-200 font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Key className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Account Recovery</span>
+                  </Link>
+                )}
               </div>
 
               {/* SLA Highlights Bar */}
