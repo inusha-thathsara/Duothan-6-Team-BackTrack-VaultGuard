@@ -1,15 +1,15 @@
 steps:
   # 1. Build Next.js App image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/app:$COMMIT_SHA', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/app:latest', '.']
+    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/app:$_COMMIT_SHA', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/app:latest', '.']
 
   # 2. Build Auth Service image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/auth-service:$COMMIT_SHA', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/auth-service:latest', './services/auth-service/']
+    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/auth-service:$_COMMIT_SHA', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/auth-service:latest', './services/auth-service/']
 
   # 3. Build Accounts Service image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/accounts-service:$COMMIT_SHA', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/accounts-service:latest', './services/accounts-service/']
+    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/accounts-service:$_COMMIT_SHA', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/accounts-service:latest', './services/accounts-service/']
 
   # 4. Push all images to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
@@ -23,3 +23,8 @@ images:
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/app:latest'
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/auth-service:latest'
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/vaultguard-repo/accounts-service:latest'
+
+substitutions:
+  _COMMIT_SHA: 'latest'
+
+
