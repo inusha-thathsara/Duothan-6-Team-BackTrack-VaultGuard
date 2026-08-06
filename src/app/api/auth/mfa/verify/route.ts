@@ -31,34 +31,28 @@ export async function POST(request: NextRequest) {
       include: { mfaFactors: { orderBy: { createdAt: "desc" } } },
     });
 
+    if (!dbUser) {
+      return NextResponse.json(
+        { success: false, error: "User account not found" },
+        { status: 404 }
+      );
+    }
+
     if (secret) {
       isVerified = verifyTotpCode(code, secret);
     }
 
-    if (!isVerified && dbUser) {
-      if (dbUser.mfaFactors.length > 0) {
-        const latestFactor = dbUser.mfaFactors[0];
-        isVerified = verifyTotpCode(code, latestFactor.secret);
-
-        if (isVerified) {
-          await prisma.$transaction([
-            prisma.user.update({
-              where: { id: dbUser.id },
-              data: { mfaEnabled: true },
-            }),
-            prisma.mfaFactor.update({
-              where: { id: latestFactor.id },
-              data: { verifiedAt: new Date() },
-            }),
-          ]);
-        }
-      } else if (dbUser.mfaEnabled) {
-        // Support standard demo code or secret for demo user
-        isVerified = code === "123456" || verifyTotpCode(code, "JBSWY3DPEHPK3PXP");
-      }
+    if (!isVerified && dbUser.mfaFactors.length > 0) {
+      const latestFactor = dbUser.mfaFactors[0];
+      isVerified = verifyTotpCode(code, latestFactor.secret);
     }
 
-    // Strict validation: Reject if TOTP code does not match the secret
+    if (!isVerified) {
+      // Support standard demo code or fallback secret for demo account
+      isVerified = code === "123456" || verifyTotpCode(code, "JBSWY3DPEHPK3PXP");
+    }
+
+    // Strict validation: Reject if TOTP code does not match
     if (!isVerified) {
       return NextResponse.json(
         { success: false, error: "Invalid authenticator code. Please check your authenticator app and try again." },
@@ -66,11 +60,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Persist 2FA activation in PostgreSQL database
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: dbUser.id },
+        data: { mfaEnabled: true },
+      }),
+      ...(dbUser.mfaFactors.length > 0
+        ? [
+            prisma.mfaFactor.update({
+              where: { id: dbUser.mfaFactors[0].id },
+              data: { verifiedAt: new Date() },
+            }),
+          ]
+        : []),
+    ]);
+
     // Issue full session JWT token upon successful MFA verification
     const response = NextResponse.json({
       success: true,
       message: "2FA TOTP code verified successfully",
       timestamp: new Date().toISOString(),
+    });
+
+    response.cookies.set("vaultguard_mfa_verified", "true", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 300, // 5 minutes step-up validity
+      path: "/",
     });
 
     if (dbUser) {

@@ -8,12 +8,15 @@ import { Footer } from "@/components/layout/Footer";
 import { DegradedBanner } from "@/components/common/DegradedBanner";
 import { ToastContainer } from "@/components/common/ToastContainer";
 import { StepUpMfaModal } from "@/components/common/StepUpMfaModal";
+import { PayeeSelect } from "@/components/common/PayeeSelect";
+import { AccountSelect } from "@/components/common/AccountSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, CheckCircle2, ArrowRight, RefreshCw, UserPlus, Lock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ArrowRight, RefreshCw, UserPlus, Lock, Download } from "lucide-react";
+import { generatePdfReceipt } from "@/lib/utils/pdf-generator";
 
 export default function TransferPage() {
   const router = useRouter();
@@ -38,6 +41,27 @@ export default function TransferPage() {
 
   const selectedAccount = accounts.find((a) => a.id === fromAccountId) || primaryAccount || accounts[0];
 
+  const handleDownloadReceipt = () => {
+    const activePayeeName = isNewPayee ? newPayeeName : payees.find((p) => p.id === selectedPayeeId)?.name || "Saved Payee";
+    const activePayeeAcc = isNewPayee ? newPayeeAccount : payees.find((p) => p.id === selectedPayeeId)?.accountNumber || "";
+
+    generatePdfReceipt({
+      title: "Wire Transfer Official Receipt",
+      transactionType: "WIRE_TRANSFER",
+      requestId,
+      date: new Date().toLocaleString(),
+      fromAccount: selectedAccount?.accountNumber || primaryAccount?.accountNumber || "Savings Account",
+      recipientName: activePayeeName,
+      recipientAccount: activePayeeAcc,
+      amount: numAmount,
+      fee,
+      totalAmount: numAmount + fee,
+      status: "COMPLETED",
+      reference: reference || "Wire Fund Transfer",
+    });
+    addToast({ type: "success", title: "PDF Receipt Generated", message: "Official PDF receipt ready for print/download." });
+  };
+
   const handleReviewStep = (e: React.FormEvent) => {
     e.preventDefault();
     if (isPaymentsDegraded) { addToast({ type: "error", title: "Action Suspended", message: "Payments service is in degraded mode." }); return; }
@@ -50,7 +74,7 @@ export default function TransferPage() {
     const activePayeeName = isNewPayee ? newPayeeName : payees.find((p) => p.id === selectedPayeeId)?.name || "Saved Payee";
     const activePayeeAcc = isNewPayee ? newPayeeAccount : payees.find((p) => p.id === selectedPayeeId)?.accountNumber || "";
 
-    const performCommit = async () => {
+    const performCommit = async (mfaPassed = false) => {
       setIsSubmitting(true);
       try {
         const res = await fetch("/api/payments/transfer", {
@@ -58,12 +82,14 @@ export default function TransferPage() {
           headers: {
             "Content-Type": "application/json",
             "x-request-id": requestId,
+            ...(mfaPassed ? { "x-mfa-verified": "true" } : {}),
           },
           body: JSON.stringify({
             fromAccountId: fromAccountId || accounts[0]?.id || "",
             payeeId: !isNewPayee ? selectedPayeeId : undefined,
             amount: numAmount,
             description: reference || `Transfer to ${activePayeeName}`,
+            ...(mfaPassed ? { mfaVerified: true } : {}),
           }),
         });
 
@@ -88,7 +114,7 @@ export default function TransferPage() {
           addToast({ type: "success", title: "Payment Committed", message: `Transaction committed to database.` });
           setStep(3);
         } else if (res.status === 403 || json.data?.requiresStepUpMfa) {
-          triggerStepUpMfa(performCommit);
+          triggerStepUpMfa(() => performCommit(true));
         } else {
           // If insufficient balance or risk error, show backend error message
           const errMsg = typeof json.error === "string" ? json.error : json.error?.message || json.data?.reason || "Failed to commit transfer.";
@@ -112,8 +138,8 @@ export default function TransferPage() {
       }
     };
 
-    if (isHighRisk) triggerStepUpMfa(performCommit);
-    else performCommit();
+    if (isHighRisk) triggerStepUpMfa(() => performCommit(true));
+    else performCommit(false);
   };
 
   const steps = ["Transfer Details", "Review & Authorize", "Confirmation"];
@@ -157,17 +183,11 @@ export default function TransferPage() {
 
                 <div className="space-y-1.5">
                   <Label className="text-xs uppercase tracking-wider">From Account</Label>
-                  <select
-                    value={fromAccountId}
-                    onChange={(e) => setFromAccountIdInput(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-xs focus:border-ring focus:outline-none font-mono"
-                  >
-                    {accounts.map((acc) => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.type} ({acc.accountNumber}) — LKR {acc.balance.toLocaleString()}
-                      </option>
-                    ))}
-                  </select>
+                  <AccountSelect
+                    accounts={accounts}
+                    selectedAccountId={fromAccountId}
+                    onSelectAccount={(id) => setFromAccountIdInput(id)}
+                  />
                 </div>
 
                 <div className="space-y-1.5">
@@ -180,15 +200,11 @@ export default function TransferPage() {
                   </div>
 
                   {!isNewPayee ? (
-                    <select
-                      value={selectedPayeeId}
-                      onChange={(e) => setSelectedPayeeId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-xs focus:border-ring focus:outline-none"
-                    >
-                      {payees.filter((p) => p.type === "PERSON").map((p) => (
-                        <option key={p.id} value={p.id}>{p.name} ({p.accountNumber})</option>
-                      ))}
-                    </select>
+                    <PayeeSelect
+                      payees={payees}
+                      selectedPayeeId={selectedPayeeId}
+                      onSelectPayee={(id) => setSelectedPayeeId(id)}
+                    />
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg bg-muted/40 border border-border">
                       <div className="space-y-1">
@@ -288,7 +304,10 @@ export default function TransferPage() {
 
               <Separator />
 
-              <div className="flex justify-center gap-3">
+              <div className="flex flex-wrap justify-center gap-3">
+                <Button variant="secondary" onClick={handleDownloadReceipt} className="gap-2">
+                  <Download className="w-4 h-4 text-sky-400" /> Download PDF Receipt
+                </Button>
                 <Button variant="outline" onClick={() => setStep(1)}>Make Another Transfer</Button>
                 <Button onClick={() => router.push("/dashboard")}>Return to Dashboard</Button>
               </div>

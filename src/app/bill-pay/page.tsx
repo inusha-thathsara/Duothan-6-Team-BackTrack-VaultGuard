@@ -12,38 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Zap,
-  Smartphone,
-  Droplets,
-  Tv2,
-  Wifi,
-  Landmark,
-  CheckCircle2,
-  RefreshCw,
-  ChevronRight,
-} from "lucide-react";
-
-/** Return an icon and accent colour based on keywords in the biller name */
-function getBillerMeta(name: string): {
-  Icon: React.ElementType;
-  accent: string;
-  category: string;
-} {
-  const n = name.toLowerCase();
-  if (n.includes("ceb") || n.includes("electric") || n.includes("power"))
-    return { Icon: Zap,        accent: "text-amber-400",  category: "Electricity" };
-  if (n.includes("water") || n.includes("nwsdb"))
-    return { Icon: Droplets,   accent: "text-sky-400",    category: "Water"       };
-  if (n.includes("dialog") || n.includes("mobitel") || n.includes("airtel") || n.includes("telecom"))
-    return { Icon: Smartphone, accent: "text-violet-400", category: "Telecom"     };
-  if (n.includes("slt") || n.includes("broadband") || n.includes("wifi") || n.includes("internet") || n.includes("fiber"))
-    return { Icon: Wifi,       accent: "text-blue-400",   category: "Internet"    };
-  if (n.includes("tv") || n.includes("peo") || n.includes("cable"))
-    return { Icon: Tv2,        accent: "text-pink-400",   category: "TV"          };
-  return   { Icon: Landmark,   accent: "text-muted-foreground", category: "Utility" };
-}
+import { Zap, Smartphone, CheckCircle2, RefreshCw, Download } from "lucide-react";
+import { generatePdfReceipt } from "@/lib/utils/pdf-generator";
 
 export default function BillPayPage() {
   const {
@@ -63,6 +33,24 @@ export default function BillPayPage() {
 
   const billerList = payees.filter((p) => p.type === "BILLER");
 
+  const handleDownloadReceipt = () => {
+    if (!successTx) return;
+    generatePdfReceipt({
+      title: "Bill Payment Official Receipt",
+      transactionType: "BILL_PAYMENT",
+      requestId: successTx.reqId,
+      date: new Date().toLocaleString(),
+      fromAccount: primaryAccount?.accountNumber || accounts[0]?.accountNumber || "Savings Account",
+      billerName: successTx.billerName,
+      billerAccount: billerAccount || "N/A",
+      amount: successTx.amount,
+      totalAmount: successTx.amount,
+      status: "COMPLETED",
+      reference: `Utility Settlement - ${successTx.billerName}`,
+    });
+    addToast({ type: "success", title: "PDF Receipt Generated", message: "Official PDF receipt ready for print/download." });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isPaymentsDegraded) {
@@ -74,18 +62,23 @@ export default function BillPayPage() {
     const activeBiller = payees.find((p) => p.id === selectedBiller);
     const reqId = `REQ-BILL-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    const executeBillPay = async () => {
+    const executeBillPay = async (mfaPassed = false) => {
       setIsSubmitting(true);
       try {
         const sourceAccountId = primaryAccount?.id || accounts[0]?.id || "";
         const res = await fetch("/api/payments/bill-pay", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-request-id": reqId },
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-id": reqId,
+            ...(mfaPassed ? { "x-mfa-verified": "true" } : {}),
+          },
           body: JSON.stringify({
             fromAccountId: sourceAccountId,
             billerId: selectedBiller,
             amount: numAmount,
-            description: `${activeBiller?.name || "Biller"} Bill Payment`,
+            description: `${activeBiller?.name || "Biller"} Settlement`,
+            ...(mfaPassed ? { mfaVerified: true } : {}),
           }),
         });
 
@@ -106,6 +99,8 @@ export default function BillPayPage() {
           });
           setSuccessTx({ reqId, billerName: activeBiller?.name || "Biller", amount: numAmount });
           addToast({ type: "success", title: "Bill Payment Settled", message: `LKR ${numAmount.toLocaleString()} paid to ${activeBiller?.name}.` });
+        } else if (res.status === 403 || json.data?.requiresStepUpMfa) {
+          triggerStepUpMfa(() => executeBillPay(true));
         } else {
           const errMsg =
             typeof json.error === "string"
@@ -131,8 +126,8 @@ export default function BillPayPage() {
       }
     };
 
-    if (numAmount > 5000) triggerStepUpMfa(executeBillPay);
-    else executeBillPay();
+    if (numAmount > 5000) triggerStepUpMfa(() => executeBillPay(true));
+    else executeBillPay(false);
   };
 
   return (
@@ -319,9 +314,12 @@ export default function BillPayPage() {
                   </div>
                 ))}
               </div>
-              <Button onClick={() => { setSuccessTx(null); setAmount(""); }}>
-                Pay Another Bill
-              </Button>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Button variant="secondary" onClick={handleDownloadReceipt} className="gap-2">
+                  <Download className="w-4 h-4 text-sky-400" /> Download PDF Receipt
+                </Button>
+                <Button onClick={() => { setSuccessTx(null); setAmount(""); }}>Pay Another Bill</Button>
+              </div>
             </CardContent>
           </Card>
         )}
