@@ -24,11 +24,55 @@ export default function MfaPage() {
   }, []);
 
   const handleChange = (index: number, value: string) => {
-    if (value.length > 1) value = value[value.length - 1];
+    const cleaned = value.replace(/\D/g, "");
+    if (!cleaned) {
+      const newCode = [...code];
+      newCode[index] = "";
+      setCode(newCode);
+      return;
+    }
+    const char = cleaned[cleaned.length - 1];
     const newCode = [...code];
-    newCode[index] = value;
+    newCode[index] = char;
     setCode(newCode);
-    if (value && index < 5) document.getElementById(`mfa-pg-input-${index + 1}`)?.focus();
+    if (char && index < 5) document.getElementById(`mfa-pg-input-${index + 1}`)?.focus();
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace") {
+      e.preventDefault();
+      const newCode = [...code];
+      if (code[index]) {
+        newCode[index] = "";
+        setCode(newCode);
+        if (index > 0) {
+          document.getElementById(`mfa-pg-input-${index - 1}`)?.focus();
+        }
+      } else if (index > 0) {
+        newCode[index - 1] = "";
+        setCode(newCode);
+        document.getElementById(`mfa-pg-input-${index - 1}`)?.focus();
+      }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      e.preventDefault();
+      document.getElementById(`mfa-pg-input-${index - 1}`)?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      e.preventDefault();
+      document.getElementById(`mfa-pg-input-${index + 1}`)?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!pastedData) return;
+    const newCode = [...code];
+    for (let i = 0; i < 6; i++) {
+      newCode[i] = pastedData[i] || "";
+    }
+    setCode(newCode);
+    const nextFocusIndex = Math.min(pastedData.length, 5);
+    document.getElementById(`mfa-pg-input-${nextFocusIndex}`)?.focus();
   };
 
   const handleVerify = async (e: React.FormEvent) => {
@@ -86,6 +130,8 @@ export default function MfaPage() {
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(idx, e)}
+                    onPaste={handlePaste}
                     className="w-10 h-12 text-center text-xl font-bold rounded-lg bg-input border border-border text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 transition-colors"
                   />
                 ))}
