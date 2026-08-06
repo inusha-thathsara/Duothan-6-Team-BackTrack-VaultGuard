@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, CheckCircle2, ArrowRight, RefreshCw, UserPlus, Lock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ArrowRight, RefreshCw, UserPlus, Lock, Download } from "lucide-react";
+import { generatePdfReceipt } from "@/lib/utils/pdf-generator";
 
 export default function TransferPage() {
   const router = useRouter();
@@ -37,6 +38,27 @@ export default function TransferPage() {
   const isHighRisk = numAmount > 5000 || isNewPayee;
 
   const selectedAccount = accounts.find((a) => a.id === fromAccountId) || primaryAccount || accounts[0];
+
+  const handleDownloadReceipt = () => {
+    const activePayeeName = isNewPayee ? newPayeeName : payees.find((p) => p.id === selectedPayeeId)?.name || "Saved Payee";
+    const activePayeeAcc = isNewPayee ? newPayeeAccount : payees.find((p) => p.id === selectedPayeeId)?.accountNumber || "";
+
+    generatePdfReceipt({
+      title: "Wire Transfer Official Receipt",
+      transactionType: "WIRE_TRANSFER",
+      requestId,
+      date: new Date().toLocaleString(),
+      fromAccount: selectedAccount?.accountNumber || primaryAccount?.accountNumber || "Savings Account",
+      recipientName: activePayeeName,
+      recipientAccount: activePayeeAcc,
+      amount: numAmount,
+      fee,
+      totalAmount: numAmount + fee,
+      status: "COMPLETED",
+      reference: reference || "Wire Fund Transfer",
+    });
+    addToast({ type: "success", title: "PDF Receipt Generated", message: "Official PDF receipt ready for print/download." });
+  };
 
   const handleReviewStep = (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,7 +312,10 @@ export default function TransferPage() {
 
               <Separator />
 
-              <div className="flex justify-center gap-3">
+              <div className="flex flex-wrap justify-center gap-3">
+                <Button variant="secondary" onClick={handleDownloadReceipt} className="gap-2">
+                  <Download className="w-4 h-4 text-sky-400" /> Download PDF Receipt
+                </Button>
                 <Button variant="outline" onClick={() => setStep(1)}>Make Another Transfer</Button>
                 <Button onClick={() => router.push("/dashboard")}>Return to Dashboard</Button>
               </div>

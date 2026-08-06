@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Smartphone, CheckCircle2, RefreshCw } from "lucide-react";
+import { Zap, Smartphone, CheckCircle2, RefreshCw, Download } from "lucide-react";
+import { generatePdfReceipt } from "@/lib/utils/pdf-generator";
 
 export default function BillPayPage() {
   const { accounts, primaryAccount, payees, addTransaction, isPaymentsDegraded, triggerStepUpMfa, addToast } = useVaultGuard();
@@ -24,6 +25,24 @@ export default function BillPayPage() {
   const [successTx, setSuccessTx] = useState<{ reqId: string; billerName: string; amount: number } | null>(null);
 
   const billerList = payees.filter((p) => p.type === "BILLER");
+
+  const handleDownloadReceipt = () => {
+    if (!successTx) return;
+    generatePdfReceipt({
+      title: "Bill Payment Official Receipt",
+      transactionType: "BILL_PAYMENT",
+      requestId: successTx.reqId,
+      date: new Date().toLocaleString(),
+      fromAccount: primaryAccount?.accountNumber || accounts[0]?.accountNumber || "Savings Account",
+      billerName: successTx.billerName,
+      billerAccount: billerAccount || "N/A",
+      amount: successTx.amount,
+      totalAmount: successTx.amount,
+      status: "COMPLETED",
+      reference: `Utility Settlement - ${successTx.billerName}`,
+    });
+    addToast({ type: "success", title: "PDF Receipt Generated", message: "Official PDF receipt ready for print/download." });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,7 +187,12 @@ export default function BillPayPage() {
                   </div>
                 ))}
               </div>
-              <Button onClick={() => { setSuccessTx(null); setAmount(""); }}>Pay Another Bill</Button>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Button variant="secondary" onClick={handleDownloadReceipt} className="gap-2">
+                  <Download className="w-4 h-4 text-sky-400" /> Download PDF Receipt
+                </Button>
+                <Button onClick={() => { setSuccessTx(null); setAmount(""); }}>Pay Another Bill</Button>
+              </div>
             </CardContent>
           </Card>
         )}
