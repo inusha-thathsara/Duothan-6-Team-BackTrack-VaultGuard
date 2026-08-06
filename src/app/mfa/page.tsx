@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useVaultGuard } from "@/context/VaultGuardContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -12,7 +11,6 @@ import { Separator } from "@/components/ui/separator";
 import { ShieldCheck, Smartphone, RefreshCw, Key } from "lucide-react";
 
 export default function MfaPage() {
-  const router = useRouter();
   const { addToast } = useVaultGuard();
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(45);
@@ -89,7 +87,7 @@ export default function MfaPage() {
 
       if (res.ok) {
         addToast({ type: "success", title: "MFA Verified", message: "Identity token issued. Welcome to VaultGuard." });
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       } else {
         addToast({ type: "error", title: "Verification Failed", message: "Invalid or expired TOTP code." });
       }

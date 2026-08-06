@@ -175,16 +175,6 @@ export const StepUpMfaModal: React.FC = () => {
               "Authorize Transaction"
             )}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setCode(["1", "2", "3", "4", "5", "6"]);
-              addToast({ type: "info", title: "Demo Code Filled", message: "Test code 123456 inserted." });
-            }}
-          >
-            Auto-fill Demo Code (123456)
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
