@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import OperatorPage from "@/app/operator/page";
 import Link from "next/link";
 import { useVaultGuard, TransactionItem } from "@/context/VaultGuardContext";
 import { Navbar } from "@/components/layout/Navbar";
@@ -25,11 +26,15 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { user, accounts, primaryAccount, transactions, isPaymentsDegraded, openStatementModal } =
+  const { user, accounts, primaryAccount, transactions, isPaymentsDegraded, openStatementModal, payees } =
     useVaultGuard();
 
   const [showBalance, setShowBalance] = useState(true);
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
+
+  if (user?.role === "SUPPORT_OPERATOR") {
+    return <OperatorPage />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -243,17 +248,99 @@ export default function DashboardPage() {
                 <span className="text-[10px] uppercase tracking-wider block mb-0.5">Idempotency Request ID</span>
                 <strong className="text-foreground text-xs">{selectedTx.requestId}</strong>
               </div>
-              {[
-                ["Description", selectedTx.description],
-                ["Recipient / Account", selectedTx.payeeName || selectedTx.accountNumber],
-                ["Amount", `LKR ${selectedTx.amount.toLocaleString()}`],
-                ["Saga Ledger State", selectedTx.sagaStatus],
-              ].map(([label, value]) => (
-                <div key={label} className="flex justify-between py-1.5 border-b border-border">
-                  <span>{label}</span>
-                  <span className="font-medium text-foreground font-mono">{value}</span>
-                </div>
-              ))}
+              {(() => {
+                const isLoan = selectedTx.type === "LOAN_REPAYMENT" || 
+                               selectedTx.requestId.startsWith("REQ-LOAN-DISB-") || 
+                               selectedTx.description.startsWith("Loan Facility Disbursed");
+
+                const isDeposit = selectedTx.requestId.startsWith("REQ-DEP-") || 
+                                  selectedTx.description.includes("Deposit by Operator");
+
+                let fields: [string, string][] = [];
+
+                if (isLoan) {
+                  const metadata = selectedTx.metadata || {};
+                  const loanId = metadata.loanId 
+                    ? `LOAN-${metadata.loanId.substring(0, 8).toUpperCase()}` 
+                    : `LOAN-${selectedTx.requestId.split("-").pop()?.toUpperCase() || "N/A"}`;
+                  
+                  const paidAmount = `LKR ${selectedTx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                  
+                  let remainingBalance = "LKR 0.00";
+                  if (metadata.remainingBalance !== undefined) {
+                    remainingBalance = `LKR ${Number(metadata.remainingBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                  } else if (selectedTx.requestId.startsWith("REQ-LOAN-DISB-")) {
+                    remainingBalance = `LKR ${Number(selectedTx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                  }
+
+                  const forMonth = metadata.targetMonth 
+                    ? new Date(metadata.targetMonth + "-15").toLocaleString("default", { month: "long", year: "numeric" })
+                    : new Date(selectedTx.date).toLocaleString("default", { month: "long", year: "numeric" });
+
+                  fields = [
+                    ["Loan ID", loanId],
+                    ["Loan Owner Name", selectedTx.senderName || selectedTx.recipientName || "VaultGuard Customer"],
+                    ["Description", selectedTx.description],
+                    ["Paid Amount", paidAmount],
+                    ["Remaining Loan Amount", remainingBalance],
+                    ["Paid For Month", selectedTx.requestId.startsWith("REQ-LOAN-DISB-") ? "N/A" : forMonth],
+                    ["Saga Ledger State", selectedTx.sagaStatus || selectedTx.status],
+                    ["Date & Time", selectedTx.date.replace("T", " ").substring(0, 19)],
+                  ];
+                } else if (isDeposit) {
+                  fields = [
+                    ["Sender Name", "Operator"],
+                    ["Sender Account", "Operator"],
+                    ["Recipient Name", selectedTx.recipientName || selectedTx.senderName || "Ruwan Silva"],
+                    ["Recipient Account", selectedTx.recipientAccountNumber || selectedTx.accountNumber || "N/A"],
+                    ["Description", selectedTx.description],
+                    ["Amount", `LKR ${selectedTx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`],
+                    ["Saga Ledger State", selectedTx.sagaStatus || selectedTx.status],
+                    ["Date & Time", selectedTx.date.replace("T", " ").substring(0, 19)],
+                  ];
+                } else {
+                  let cleanRecipientName = selectedTx.recipientName || "External / Payee";
+                  if (cleanRecipientName === selectedTx.description && selectedTx.description.startsWith("Transfer to ")) {
+                    cleanRecipientName = selectedTx.description.replace("Transfer to ", "");
+                  }
+
+                  // Keyword-aware payee lookup:
+                  // 1. Exact name match
+                  // 2. Description contains full payee name
+                  // 3. Any significant keyword (>=3 chars) from payee name appears in description
+                  const descLower = selectedTx.description.toLowerCase();
+                  const payeeMatch = payees?.find(p => {
+                    if (p.name === cleanRecipientName) return true;
+                    const pLower = p.name.toLowerCase();
+                    if (descLower.includes(pLower)) return true;
+                    const keywords = pLower.split(/[\s&(),]+/).filter(w => w.length >= 3);
+                    return keywords.some(kw => descLower.includes(kw));
+                  });
+                  // Use payee's saved name (e.g. "City Power & Electric (CEB)" for any bill pay)
+                  if (payeeMatch) cleanRecipientName = payeeMatch.name;
+                  const recipientAccount = selectedTx.recipientAccountNumber && selectedTx.recipientAccountNumber !== "N/A"
+                    ? selectedTx.recipientAccountNumber
+                    : (payeeMatch?.accountNumber ?? "N/A");
+
+                  fields = [
+                    ["Sender Name", selectedTx.senderName || "VaultGuard System"],
+                    ["Sender Account", selectedTx.senderAccountNumber || "System Account"],
+                    ["Recipient Name", cleanRecipientName],
+                    ["Recipient Account", recipientAccount],
+                    ["Description", selectedTx.description],
+                    ["Amount", `LKR ${selectedTx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`],
+                    ["Saga Ledger State", selectedTx.sagaStatus || selectedTx.status],
+                    ["Date & Time", selectedTx.date.replace("T", " ").substring(0, 19)],
+                  ];
+                }
+
+                return fields.map(([label, value]) => (
+                  <div key={label} className="flex justify-between items-start gap-4 py-1.5 border-b border-border">
+                    <span className="shrink-0 text-muted-foreground">{label}</span>
+                    <span className="font-medium text-foreground font-mono text-right break-words whitespace-normal">{value}</span>
+                  </div>
+                ));
+              })()}
             </div>
           )}
         </DialogContent>

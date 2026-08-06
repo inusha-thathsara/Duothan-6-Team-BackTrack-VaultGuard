@@ -155,7 +155,15 @@ export async function processLoanRepayment(
     // 5. Complete transaction
     const completedTx = await tx.transaction.update({
       where: { id: txRecord.id },
-      data: { status: "COMPLETED", sagaStatus: "COMPLETED" },
+      data: {
+        status: "COMPLETED",
+        sagaStatus: "COMPLETED",
+        metadata: {
+          loanId: loan.id,
+          remainingBalance: Math.max(0, newOutstanding),
+          targetMonth: nextSchedule ? nextSchedule.dueDate.toISOString().substring(0, 7) : new Date().toISOString().substring(0, 7)
+        }
+      },
     });
 
     // 6. Write outbox event for audit/notification

@@ -1,7 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
-import { useVaultGuard } from "@/context/VaultGuardContext";
+import React, { useState, useEffect } from "react";
+import { useVaultGuard, TransactionItem } from "@/context/VaultGuardContext";
+
+interface RawTransactionItem {
+  id: string;
+  requestId?: string;
+  createdAt?: string;
+  type?: string;
+  description?: string;
+  toAccount?: { accountNumber: string; user?: { fullName: string } };
+  fromAccount?: { accountNumber: string; user?: { fullName: string } };
+  amount: number | string;
+  status?: string;
+  metadata?: { loanId?: string; remainingBalance?: number; targetMonth?: string };
+}
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { DegradedBanner } from "@/components/common/DegradedBanner";
@@ -12,12 +25,66 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Filter, Download, CheckCircle2, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function HistoryPage() {
-  const { transactions, openStatementModal } = useVaultGuard();
+  const { user, transactions, openStatementModal, payees } = useVaultGuard();
+  const isOperator = user?.role === "SUPPORT_OPERATOR";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [operatorTx, setOperatorTx] = useState<TransactionItem[]>([]);
+  const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
+
+  useEffect(() => {
+    if (!isOperator) return;
+    
+    async function fetchOperatorHistory() {
+      try {
+        const queryParams = new URLSearchParams();
+        if (searchTerm) queryParams.set("search", searchTerm);
+        if (statusFilter !== "ALL") queryParams.set("status", statusFilter);
+        if (typeFilter !== "ALL") queryParams.set("type", typeFilter);
+        queryParams.set("limit", "50");
+
+        const res = await fetch(`/api/payments/history?${queryParams.toString()}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data?.items)) {
+            setOperatorTx(
+              json.data.items.map((item: RawTransactionItem) => ({
+                id: item.id,
+                requestId: item.requestId || `REQ-${item.id.substring(0, 8)}`,
+                date: item.createdAt || new Date().toISOString(),
+                type: item.type || "TRANSFER",
+                description: item.description || "Funds Transfer",
+                payeeName: item.toAccount?.accountNumber || item.description || "Transfer",
+                accountNumber: item.fromAccount?.accountNumber || "",
+                amount: Number(item.amount) || 0,
+                fee: 0,
+                status: item.status || "COMPLETED",
+                sagaStatus: item.status || "COMPLETED",
+                category: item.type === "INCOME" ? "Income" : "Transfer",
+                senderName: item.fromAccount?.user?.fullName || "VaultGuard System",
+                senderAccountNumber: item.fromAccount?.accountNumber || "",
+                recipientName: item.toAccount?.user?.fullName || item.description || "External Payee",
+                recipientAccountNumber: item.toAccount?.accountNumber || "",
+                metadata: item.metadata,
+              }))
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch operator history:", err);
+      }
+    }
+
+    const delayDebounce = setTimeout(() => {
+      fetchOperatorHistory();
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [isOperator, searchTerm, statusFilter, typeFilter]);
 
   const filteredTx = transactions.filter((tx) => {
     const matchesSearch =
@@ -28,6 +95,8 @@ export default function HistoryPage() {
     const matchesType = typeFilter === "ALL" || tx.type === typeFilter;
     return matchesSearch && matchesStatus && matchesType;
   });
+
+  const displayTx = isOperator ? operatorTx : filteredTx;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -86,15 +155,15 @@ export default function HistoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border font-mono">
-                {filteredTx.length === 0 ? (
+                {displayTx.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-muted-foreground font-sans text-xs">
                       No matching transaction records found.
                     </td>
                   </tr>
                 ) : (
-                  filteredTx.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
+                  displayTx.map((tx) => (
+                    <tr key={tx.id} onClick={() => setSelectedTx(tx)} className="hover:bg-muted/30 cursor-pointer transition-colors">
                       <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
                         {tx.date.substring(0, 10)} <span className="text-[10px]">{tx.date.substring(11, 16)}</span>
                       </td>
@@ -128,6 +197,116 @@ export default function HistoryPage() {
           </div>
         </Card>
       </main>
+
+      {/* Transaction Detail Dialog */}
+      <Dialog open={!!selectedTx} onOpenChange={(open) => !open && setSelectedTx(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transaction Details</DialogTitle>
+          </DialogHeader>
+          {selectedTx && (
+            <div className="space-y-2.5 text-xs text-muted-foreground">
+              <div className="p-3 bg-muted rounded-lg border border-border font-mono">
+                <span className="text-[10px] uppercase tracking-wider block mb-0.5">Idempotency Request ID</span>
+                <strong className="text-foreground text-xs">{selectedTx.requestId}</strong>
+              </div>
+              {(() => {
+                const isLoan = selectedTx.type === "LOAN_REPAYMENT" || 
+                               selectedTx.requestId.startsWith("REQ-LOAN-DISB-") || 
+                               selectedTx.description.startsWith("Loan Facility Disbursed");
+
+                const isDeposit = selectedTx.requestId.startsWith("REQ-DEP-") || 
+                                  selectedTx.description.includes("Deposit by Operator");
+
+                let fields: [string, string][] = [];
+
+                if (isLoan) {
+                  const metadata = selectedTx.metadata || {};
+                  const loanId = metadata.loanId 
+                    ? `LOAN-${metadata.loanId.substring(0, 8).toUpperCase()}` 
+                    : `LOAN-${selectedTx.requestId.split("-").pop()?.toUpperCase() || "N/A"}`;
+                  
+                  const paidAmount = `LKR ${selectedTx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                  
+                  let remainingBalance = "LKR 0.00";
+                  if (metadata.remainingBalance !== undefined) {
+                    remainingBalance = `LKR ${Number(metadata.remainingBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                  } else if (selectedTx.requestId.startsWith("REQ-LOAN-DISB-")) {
+                    remainingBalance = `LKR ${Number(selectedTx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                  }
+
+                  const forMonth = metadata.targetMonth 
+                    ? new Date(metadata.targetMonth + "-15").toLocaleString("default", { month: "long", year: "numeric" })
+                    : new Date(selectedTx.date).toLocaleString("default", { month: "long", year: "numeric" });
+
+                  fields = [
+                    ["Loan ID", loanId],
+                    ["Loan Owner Name", selectedTx.senderName || selectedTx.recipientName || "VaultGuard Customer"],
+                    ["Description", selectedTx.description],
+                    ["Paid Amount", paidAmount],
+                    ["Remaining Loan Amount", remainingBalance],
+                    ["Paid For Month", selectedTx.requestId.startsWith("REQ-LOAN-DISB-") ? "N/A" : forMonth],
+                    ["Saga Ledger State", selectedTx.sagaStatus || selectedTx.status],
+                    ["Date & Time", selectedTx.date.replace("T", " ").substring(0, 19)],
+                  ];
+                } else if (isDeposit) {
+                  fields = [
+                    ["Sender Name", "Operator"],
+                    ["Sender Account", "Operator"],
+                    ["Recipient Name", selectedTx.recipientName || selectedTx.senderName || "Ruwan Silva"],
+                    ["Recipient Account", selectedTx.recipientAccountNumber || selectedTx.accountNumber || "N/A"],
+                    ["Description", selectedTx.description],
+                    ["Amount", `LKR ${selectedTx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`],
+                    ["Saga Ledger State", selectedTx.sagaStatus || selectedTx.status],
+                    ["Date & Time", selectedTx.date.replace("T", " ").substring(0, 19)],
+                  ];
+                } else {
+                  let cleanRecipientName = selectedTx.recipientName || "External / Payee";
+                  if (cleanRecipientName === selectedTx.description && selectedTx.description.startsWith("Transfer to ")) {
+                    cleanRecipientName = selectedTx.description.replace("Transfer to ", "");
+                  }
+                  
+                  // Keyword-aware payee lookup:
+                  // 1. Exact name match
+                  // 2. Description contains full payee name
+                  // 3. Any significant keyword (>=3 chars) from payee name appears in description
+                  const descLower = selectedTx.description.toLowerCase();
+                  const payeeMatch = payees?.find(p => {
+                    if (p.name === cleanRecipientName) return true;
+                    const pLower = p.name.toLowerCase();
+                    if (descLower.includes(pLower)) return true;
+                    const keywords = pLower.split(/[\s&(),]+/).filter(w => w.length >= 3);
+                    return keywords.some(kw => descLower.includes(kw));
+                  });
+                  // Use payee's saved name (e.g. "City Power & Electric (CEB)" for any bill pay)
+                  if (payeeMatch) cleanRecipientName = payeeMatch.name;
+                  const recipientAccountNumber = selectedTx.recipientAccountNumber && selectedTx.recipientAccountNumber !== "N/A"
+                    ? selectedTx.recipientAccountNumber
+                    : (payeeMatch?.accountNumber ?? "N/A");
+
+                  fields = [
+                    ["Sender Name", selectedTx.senderName || "VaultGuard System"],
+                    ["Sender Account", selectedTx.senderAccountNumber || "System Account"],
+                    ["Recipient Name", cleanRecipientName],
+                    ["Recipient Account", recipientAccountNumber],
+                    ["Description", selectedTx.description],
+                    ["Amount", `LKR ${selectedTx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`],
+                    ["Saga Ledger State", selectedTx.sagaStatus || selectedTx.status],
+                    ["Date & Time", selectedTx.date.replace("T", " ").substring(0, 19)],
+                  ];
+                }
+
+                return fields.map(([label, value]) => (
+                  <div key={label} className="flex justify-between items-start gap-4 py-1.5 border-b border-border">
+                    <span className="shrink-0 text-muted-foreground">{label}</span>
+                    <span className="font-medium text-foreground font-mono text-right break-words whitespace-normal">{value}</span>
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Footer />
       <StatementModal />
