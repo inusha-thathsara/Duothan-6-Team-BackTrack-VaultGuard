@@ -14,12 +14,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Zap,
-  Smartphone,
   Droplets,
   Tv2,
   Wifi,
   Landmark,
+  Zap as ZapIcon,
+  Smartphone as SmartphoneIcon,
   CheckCircle2,
   RefreshCw,
   ChevronRight,
@@ -33,16 +33,16 @@ function getBillerMeta(name: string): {
 } {
   const n = name.toLowerCase();
   if (n.includes("ceb") || n.includes("electric") || n.includes("power"))
-    return { Icon: Zap,        accent: "text-amber-400",  category: "Electricity" };
+    return { Icon: ZapIcon,        accent: "text-amber-400",       category: "Electricity" };
   if (n.includes("water") || n.includes("nwsdb"))
-    return { Icon: Droplets,   accent: "text-sky-400",    category: "Water"       };
+    return { Icon: Droplets,       accent: "text-sky-400",         category: "Water"       };
   if (n.includes("dialog") || n.includes("mobitel") || n.includes("airtel") || n.includes("telecom"))
-    return { Icon: Smartphone, accent: "text-violet-400", category: "Telecom"     };
+    return { Icon: SmartphoneIcon, accent: "text-violet-400",      category: "Telecom"     };
   if (n.includes("slt") || n.includes("broadband") || n.includes("wifi") || n.includes("internet") || n.includes("fiber"))
-    return { Icon: Wifi,       accent: "text-blue-400",   category: "Internet"    };
+    return { Icon: Wifi,           accent: "text-blue-400",        category: "Internet"    };
   if (n.includes("tv") || n.includes("peo") || n.includes("cable"))
-    return { Icon: Tv2,        accent: "text-pink-400",   category: "TV"          };
-  return   { Icon: Landmark,   accent: "text-muted-foreground", category: "Utility" };
+    return { Icon: Tv2,            accent: "text-pink-400",        category: "TV"          };
+  return   { Icon: Landmark,       accent: "text-muted-foreground", category: "Utility"   };
 }
 
 export default function BillPayPage() {
