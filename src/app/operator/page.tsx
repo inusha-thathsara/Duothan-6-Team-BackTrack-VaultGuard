@@ -54,11 +54,12 @@ interface AccessAuditLog {
 
 interface DlqItem {
   id: string;
-  eventId: string;
+  originalEventId: string;
   eventType: string;
-  errorReason: string;
+  failureReason: string;
   retryCount: number;
   createdAt: string;
+  replayedAt: string | null;
 }
 
 export default function OperatorPage() {
@@ -111,6 +112,51 @@ export default function OperatorPage() {
     }
   }, [selectedCustomer]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  const [isReplaying, setIsReplaying] = useState<string | null>(null);
+
+  const handleReplayDlq = async (dlqId: string) => {
+    setIsReplaying(dlqId);
+    try {
+      const res = await fetch("/api/admin/dlq/replay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dlqId }),
+      });
+
+      const body = await res.json();
+      if (res.ok && body.success) {
+        addToast({
+          type: "success",
+          title: "Event Replayed",
+          message: "DLQ entry replayed successfully.",
+        });
+        
+        // Refresh DLQ list
+        const dlqRes = await fetch("/api/admin/dlq");
+        if (dlqRes.ok) {
+          const json = await dlqRes.json();
+          if (json.success && Array.isArray(json.data)) {
+            setDlqEntries(json.data);
+          }
+        }
+      } else {
+        addToast({
+          type: "error",
+          title: "Replay Failed",
+          message: body.error || "Failed to replay DLQ entry.",
+        });
+      }
+    } catch {
+      addToast({
+        type: "error",
+        title: "Network Error",
+        message: "Failed to connect to the server.",
+      });
+    } finally {
+      setIsReplaying(null);
+    }
+  };
 
   const handleInitiateRecovery = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -906,14 +952,28 @@ export default function OperatorPage() {
                   </div>
                 ) : (
                   dlqEntries.map((dlq) => (
-                    <div key={dlq.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div key={dlq.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border last:border-b-0">
                       <div>
                         <span className="text-amber-400 font-semibold">{dlq.eventType}</span>
-                        <span className="block text-rose-300 text-[11px] font-sans mt-0.5">Reason: {dlq.errorReason}</span>
-                        <span className="text-[10px] text-muted-foreground">Event ID: {dlq.eventId} · Retries: {dlq.retryCount}</span>
+                        <span className="block text-rose-300 text-[11px] font-sans mt-0.5">Reason: {dlq.failureReason}</span>
+                        <span className="text-[10px] text-muted-foreground">Original Event ID: {dlq.originalEventId} · Retries: {dlq.retryCount}</span>
                       </div>
-                      <div className="text-right text-[11px] text-muted-foreground">
-                        <span>{new Date(dlq.createdAt).toLocaleString()}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right text-[11px] text-muted-foreground">
+                          <div>{new Date(dlq.createdAt).toLocaleString()}</div>
+                          {dlq.replayedAt && (
+                            <span className="text-emerald-400 text-[10px] block">Replayed: {new Date(dlq.replayedAt).toLocaleDateString()}</span>
+                          )}
+                        </div>
+                        {!dlq.replayedAt && (
+                          <button
+                            onClick={() => handleReplayDlq(dlq.id)}
+                            disabled={isReplaying !== null}
+                            className="bg-amber-600 hover:bg-amber-500 text-white font-medium text-[11px] h-7 px-3 rounded transition-colors disabled:opacity-50"
+                          >
+                            {isReplaying === dlq.id ? "Replaying..." : "Replay"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))
