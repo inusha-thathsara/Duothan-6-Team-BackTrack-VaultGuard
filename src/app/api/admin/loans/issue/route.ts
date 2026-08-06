@@ -120,6 +120,8 @@ export async function POST(req: NextRequest) {
             userId: user.id,
             accountId: account.id,
             amount: input.principalAmount,
+            title: input.title,
+            description: `Loan Facility Disbursed — ${input.title}`,
             operatorId: auth.userId,
             timestamp: new Date().toISOString(),
           },

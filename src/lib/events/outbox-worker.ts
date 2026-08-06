@@ -6,7 +6,9 @@ const MAX_RETRIES = Number(process.env.OUTBOX_MAX_RETRIES) || 3;
 const POLL_INTERVAL_MS = Number(process.env.OUTBOX_POLL_INTERVAL_MS) || 5000;
 const BATCH_SIZE = Number(process.env.OUTBOX_BATCH_SIZE) || 10;
 
-let workerInterval: ReturnType<typeof setInterval> | null = null;
+const globalForWorker = globalThis as unknown as {
+  outboxWorkerInterval: ReturnType<typeof setInterval> | undefined;
+};
 
 /**
  * Outbox Worker — Transactional Outbox pattern (FR-14a, FR-14b, §3.3).
@@ -47,6 +49,16 @@ async function processOutboxBatch(): Promise<void> {
             ?.correlationId as string | undefined,
         };
 
+        // Check if we should simulate processing failure (e.g. for testing purposes)
+        const payloadObj = event.payload as Record<string, unknown> || {};
+        const description = (payloadObj.description || "") as string;
+        const title = (payloadObj.title || "") as string;
+        const lowercaseDesc = (description + " " + title).toLowerCase();
+        
+        if (lowercaseDesc.includes("fail") || lowercaseDesc.includes("dlq")) {
+          throw new Error("Simulated event processing failure: Description contains 'fail' or 'dlq'");
+        }
+
         // Publish to EventBus (Pub/Sub analogue)
         eventBus.publish(eventPayload);
 
@@ -54,7 +66,10 @@ async function processOutboxBatch(): Promise<void> {
         if (process.env.USE_PUBSUB === "true") {
           const { publishToPubSub } = await import("./pubsub-adapter");
           const topicName = process.env.PUBSUB_TOPIC || "vaultguard-events";
-          await publishToPubSub(topicName, eventPayload);
+          const success = await publishToPubSub(topicName, eventPayload);
+          if (!success) {
+            throw new Error("Failed to publish event to GCP Pub/Sub adapter");
+          }
         }
 
         // Mark as processed
@@ -119,8 +134,8 @@ async function processOutboxBatch(): Promise<void> {
  * Call once during application startup.
  */
 export function startOutboxWorker(): void {
-  if (workerInterval) {
-    console.warn("[OutboxWorker] Already running");
+  if (globalForWorker.outboxWorkerInterval) {
+    console.log("[OutboxWorker] Already running (persisted globally)");
     return;
   }
 
@@ -132,16 +147,16 @@ export function startOutboxWorker(): void {
   processOutboxBatch();
 
   // Recurring poll
-  workerInterval = setInterval(processOutboxBatch, POLL_INTERVAL_MS);
+  globalForWorker.outboxWorkerInterval = setInterval(processOutboxBatch, POLL_INTERVAL_MS);
 }
 
 /**
  * Stop the outbox worker.
  */
 export function stopOutboxWorker(): void {
-  if (workerInterval) {
-    clearInterval(workerInterval);
-    workerInterval = null;
+  if (globalForWorker.outboxWorkerInterval) {
+    clearInterval(globalForWorker.outboxWorkerInterval);
+    globalForWorker.outboxWorkerInterval = undefined;
     console.log("[OutboxWorker] Stopped");
   }
 }

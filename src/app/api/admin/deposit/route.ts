@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
             accountNumber: account.accountNumber,
             amount: input.amount,
             currency: account.currency,
+            description: input.description || `Over-the-counter Cash Deposit by Operator`,
             operatorId: auth.userId,
             timestamp: new Date().toISOString(),
           },
