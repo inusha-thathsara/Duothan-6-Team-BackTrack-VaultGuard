@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Key, CheckCircle2, ArrowRight, RefreshCw, QrCode, ShieldCheck } from "lucide-react";
+import { Key, CheckCircle2, ArrowRight, RefreshCw, QrCode, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
 export default function EnrollPage() {
   const router = useRouter();
@@ -21,6 +21,7 @@ export default function EnrollPage() {
   const [nationalId, setNationalId] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [mfaData, setMfaData] = useState<{ secret: string; qrCodeDataUrl: string } | null>(null);
   const [mfaCode, setMfaCode] = useState("");
@@ -51,18 +52,44 @@ export default function EnrollPage() {
       });
       const regData = await regRes.json();
 
-      if (!regRes.ok || !regData.success) {
-        setErrorMsg(regData.error || "Registration failed. Please check your credentials.");
-        setIsVerifying(false);
-        return;
-      }
+      let token = regData.data?.token;
 
-      if (regData.success && regData.data?.user) {
+      if (!regRes.ok || !regData.success) {
+        if (regRes.status === 409 || regData.error?.includes("already exists")) {
+          // If account already exists from previous click, log in to continue enrollment
+          const loginRes = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          const loginData = await loginRes.json();
+          if (loginRes.ok && loginData.success && loginData.data?.user) {
+            setUser(loginData.data.user);
+            token = loginData.data.token;
+          } else {
+            setErrorMsg("An account with this email or National ID already exists. Please login instead.");
+            setIsVerifying(false);
+            return;
+          }
+        } else {
+          setErrorMsg(regData.error || "Registration failed. Please check your credentials.");
+          setIsVerifying(false);
+          return;
+        }
+      } else if (regData.success && regData.data?.user) {
         setUser(regData.data.user);
       }
 
-      // 2. Setup 2FA / QR code
-      const mfaRes = await fetch("/api/auth/mfa/setup", { method: "POST" });
+      // 2. Setup 2FA / QR code (passing Bearer token for instant authentication)
+      const mfaHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        mfaHeaders["Authorization"] = `Bearer ${token}`;
+      }
+
+      const mfaRes = await fetch("/api/auth/mfa/setup", {
+        method: "POST",
+        headers: mfaHeaders,
+      });
       const mfaJson = await mfaRes.json();
       setIsVerifying(false);
 
@@ -141,9 +168,15 @@ export default function EnrollPage() {
             {/* Step 1 */}
             {step === 1 && (
               <form onSubmit={handleVerifyIdentity} className="space-y-4">
-                <p className="text-xs text-muted-foreground p-3 rounded-lg bg-muted border border-border">
-                  Enter your National Identity Card (NIC) number and full legal name to verify identity.
-                </p>
+                <div className="flex items-start gap-3 p-3.5 rounded-lg bg-primary/5 border border-primary/20 text-xs">
+                  <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-semibold text-foreground">Identity Verification</p>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Provide your registered National Identity Card (NIC) and full legal name to verify your customer record.
+                    </p>
+                  </div>
+                </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs uppercase tracking-wider">Email Address</Label>
                   <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="alex.perera@vaultguard.bank" required />
@@ -165,13 +198,30 @@ export default function EnrollPage() {
             {/* Step 2 */}
             {step === 2 && (
               <form onSubmit={handleRegisterAndSetupMfa} className="space-y-4">
-                <div className="p-3 rounded-lg bg-muted border border-border text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-foreground" />
-                  <span className="text-muted-foreground">Identity Matched: <strong className="text-foreground">{fullName}</strong> ({email})</span>
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-center gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                  <span className="text-foreground/90 font-medium">Identity Matched: <strong>{fullName}</strong> ({email})</span>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs uppercase tracking-wider">Account Password</Label>
-                  <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" required />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="At least 6 characters"
+                      required
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="p-3.5 rounded-lg bg-muted/50 border border-border space-y-2 text-xs">
                   <div className="flex items-center gap-2 font-semibold">

@@ -386,6 +386,48 @@ export default function OperatorPage() {
     }
   };
 
+  const [isFreezing, setIsFreezing] = useState<string | null>(null);
+
+  const handleToggleFreezeAccount = async (accNumber: string, currentStatus: string) => {
+    const newStatus = currentStatus === "FROZEN" ? "ACTIVE" : "FROZEN";
+    setIsFreezing(accNumber);
+    try {
+      const res = await fetch("/api/admin/accounts/freeze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountNumber: accNumber,
+          status: newStatus,
+          reason: `Support Operator status change to ${newStatus}`,
+        }),
+      });
+      const json = await res.json();
+      setIsFreezing(null);
+
+      if (res.ok && json.success) {
+        addToast({
+          type: "success",
+          title: `Account ${newStatus === "FROZEN" ? "Frozen" : "Unfrozen"}`,
+          message: `Account ${accNumber} status updated to ${newStatus}. Audit log entry created.`,
+        });
+
+        if (selectedCustomer) {
+          setSelectedCustomer({
+            ...selectedCustomer,
+            accounts: selectedCustomer.accounts.map((a) =>
+              a.accountNumber === accNumber ? { ...a, status: newStatus } : a
+            ),
+          });
+        }
+      } else {
+        addToast({ type: "error", title: "Operation Failed", message: json.error || "Failed to update account status." });
+      }
+    } catch {
+      setIsFreezing(null);
+      addToast({ type: "error", title: "Network Error", message: "Failed to connect to admin account control service." });
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <DegradedBanner />
@@ -541,10 +583,31 @@ export default function OperatorPage() {
                               <div>
                                 <span className="font-semibold text-foreground block">{acc.type} ({acc.accountNumber})</span>
                                 <span className="text-[10px] text-muted-foreground">
-                                  Status: <span className="text-emerald-400 font-semibold">{acc.status || "ACTIVE"}</span>
+                                  Status: <span className={acc.status === "FROZEN" ? "text-rose-400 font-bold" : "text-emerald-400 font-semibold"}>{acc.status || "ACTIVE"}</span>
                                 </span>
                               </div>
-                              <strong className="text-foreground text-sm">{acc.currency || "LKR"} {Number(acc.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>
+                              <div className="flex items-center gap-3">
+                                <strong className="text-foreground text-sm">{acc.currency || "LKR"} {Number(acc.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleFreezeAccount(acc.accountNumber, acc.status || "ACTIVE")}
+                                  disabled={isFreezing === acc.accountNumber}
+                                  className={`px-2.5 py-1 rounded text-[11px] font-sans font-semibold transition-colors flex items-center gap-1.5 ${
+                                    acc.status === "FROZEN"
+                                      ? "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30"
+                                      : "bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30"
+                                  }`}
+                                >
+                                  {isFreezing === acc.accountNumber ? (
+                                    <RefreshCw className="w-3 h-3 animate-spin" />
+                                  ) : acc.status === "FROZEN" ? (
+                                    <CheckCircle2 className="w-3 h-3" />
+                                  ) : (
+                                    <ShieldAlert className="w-3 h-3" />
+                                  )}
+                                  {acc.status === "FROZEN" ? "Unfreeze" : "Freeze Account"}
+                                </button>
+                              </div>
                             </div>
                           ))
                         ) : (
