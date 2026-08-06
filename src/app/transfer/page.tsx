@@ -8,6 +8,8 @@ import { Footer } from "@/components/layout/Footer";
 import { DegradedBanner } from "@/components/common/DegradedBanner";
 import { ToastContainer } from "@/components/common/ToastContainer";
 import { StepUpMfaModal } from "@/components/common/StepUpMfaModal";
+import { PayeeSelect } from "@/components/common/PayeeSelect";
+import { AccountSelect } from "@/components/common/AccountSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -181,17 +183,11 @@ export default function TransferPage() {
 
                 <div className="space-y-1.5">
                   <Label className="text-xs uppercase tracking-wider">From Account</Label>
-                  <select
-                    value={fromAccountId}
-                    onChange={(e) => setFromAccountIdInput(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-xs focus:border-ring focus:outline-none font-mono"
-                  >
-                    {accounts.map((acc) => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.type} ({acc.accountNumber}) — LKR {acc.balance.toLocaleString()}
-                      </option>
-                    ))}
-                  </select>
+                  <AccountSelect
+                    accounts={accounts}
+                    selectedAccountId={fromAccountId}
+                    onSelectAccount={(id) => setFromAccountIdInput(id)}
+                  />
                 </div>
 
                 <div className="space-y-1.5">
@@ -204,15 +200,11 @@ export default function TransferPage() {
                   </div>
 
                   {!isNewPayee ? (
-                    <select
-                      value={selectedPayeeId}
-                      onChange={(e) => setSelectedPayeeId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-xs focus:border-ring focus:outline-none"
-                    >
-                      {payees.filter((p) => p.type === "PERSON").map((p) => (
-                        <option key={p.id} value={p.id}>{p.name} ({p.accountNumber})</option>
-                      ))}
-                    </select>
+                    <PayeeSelect
+                      payees={payees}
+                      selectedPayeeId={selectedPayeeId}
+                      onSelectPayee={(id) => setSelectedPayeeId(id)}
+                    />
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg bg-muted/40 border border-border">
                       <div className="space-y-1">
