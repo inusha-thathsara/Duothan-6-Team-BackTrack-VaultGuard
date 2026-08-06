@@ -135,7 +135,7 @@ async function main() {
   });
 
   // Demo Customer 3: Ruwan Silva (Frozen Account Scenario)
-  const frozenUser = await prisma.user.create({
+  await prisma.user.create({
     data: {
       email: 'ruwan@vaultguard.com',
       passwordHash: defaultPasswordHash,

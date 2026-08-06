@@ -21,8 +21,8 @@ export default function SecurityPage() {
   const { trustedDevices, revokeDevice, securityEvents, addToast, user, setUser } = useVaultGuard();
 
   // Profile Form state
-  const [fullName, setFullName] = useState(user?.fullName || "");
-  const [email, setEmail] = useState(user?.email || "");
+  const [fullNameInput, setFullNameInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
   const [phone, setPhone] = useState("");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
@@ -38,16 +38,11 @@ export default function SecurityPage() {
   const [isVerifyingTotp, setIsVerifyingTotp] = useState(false);
 
   const [liveSecurityEvents, setLiveSecurityEvents] = useState<Array<{ id: string; action: string; device: string; timestamp: string }>>([]);
+  const [mfaEnabledState, setMfaEnabledState] = useState<boolean | null>(null);
 
-  const [mfaEnabled, setMfaEnabled] = useState(user?.mfaEnabled || false);
-
-  useEffect(() => {
-    if (user) {
-      setFullName(user.fullName || "");
-      setEmail(user.email || "");
-      setMfaEnabled(!!user.mfaEnabled);
-    }
-  }, [user]);
+  const fullName = fullNameInput || user?.fullName || "";
+  const email = emailInput || user?.email || "";
+  const mfaEnabled = mfaEnabledState !== null ? mfaEnabledState : !!user?.mfaEnabled;
 
   useEffect(() => {
     // Fetch profile from backend
@@ -55,10 +50,10 @@ export default function SecurityPage() {
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data) {
-          setFullName(json.data.fullName || "");
-          setEmail(json.data.email || "");
+          setFullNameInput(json.data.fullName || "");
+          setEmailInput(json.data.email || "");
           setPhone(json.data.phoneNumber || "");
-          setMfaEnabled(!!json.data.mfaEnabled);
+          setMfaEnabledState(!!json.data.mfaEnabled);
         }
       })
       .catch(() => {});
@@ -171,7 +166,7 @@ export default function SecurityPage() {
       setIsVerifyingTotp(false);
 
       if (res.ok && data.success) {
-        setMfaEnabled(true);
+        setMfaEnabledState(true);
         if (setUser && user) {
           setUser({ ...user, mfaEnabled: true });
         }
@@ -216,11 +211,11 @@ export default function SecurityPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-[11px] uppercase tracking-wider">Full Legal Name</Label>
-                    <Input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+                    <Input value={fullName} onChange={(e) => setFullNameInput(e.target.value)} required />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[11px] uppercase tracking-wider">Primary Email Address</Label>
-                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <Input type="email" value={email} onChange={(e) => setEmailInput(e.target.value)} required />
                   </div>
                 </div>
 

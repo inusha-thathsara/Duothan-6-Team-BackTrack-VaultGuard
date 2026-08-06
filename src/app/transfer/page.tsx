@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useVaultGuard } from "@/context/VaultGuardContext";
 import { Navbar } from "@/components/layout/Navbar";
@@ -21,13 +21,8 @@ export default function TransferPage() {
     useVaultGuard();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [fromAccountId, setFromAccountId] = useState(primaryAccount?.id || accounts[0]?.id || "");
-
-  useEffect(() => {
-    if (!fromAccountId && (primaryAccount?.id || accounts[0]?.id)) {
-      setFromAccountId(primaryAccount?.id || accounts[0]?.id || "");
-    }
-  }, [accounts, primaryAccount, fromAccountId]);
+  const [fromAccountIdInput, setFromAccountIdInput] = useState("");
+  const fromAccountId = fromAccountIdInput || primaryAccount?.id || accounts[0]?.id || "";
   const [selectedPayeeId, setSelectedPayeeId] = useState(payees[0]?.id || "");
   const [newPayeeName, setNewPayeeName] = useState("");
   const [newPayeeAccount, setNewPayeeAccount] = useState("");
@@ -164,7 +159,7 @@ export default function TransferPage() {
                   <Label className="text-xs uppercase tracking-wider">From Account</Label>
                   <select
                     value={fromAccountId}
-                    onChange={(e) => setFromAccountId(e.target.value)}
+                    onChange={(e) => setFromAccountIdInput(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-xs focus:border-ring focus:outline-none font-mono"
                   >
                     {accounts.map((acc) => (

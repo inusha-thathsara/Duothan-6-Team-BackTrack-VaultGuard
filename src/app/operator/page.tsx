@@ -75,7 +75,7 @@ export default function OperatorPage() {
   const [isLoadingDlq, setIsLoadingDlq] = useState(false);
 
   // Deposit Form State
-  const [depositAccNumber, setDepositAccNumber] = useState("");
+  const [depositAccNumberInput, setDepositAccNumberInput] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
   const [depositDescription, setDepositDescription] = useState("");
   const [isDepositing, setIsDepositing] = useState(false);
@@ -85,8 +85,12 @@ export default function OperatorPage() {
   const [loanPrincipal, setLoanPrincipal] = useState("250000");
   const [loanInterest, setLoanInterest] = useState("6.5");
   const [loanTerm, setLoanTerm] = useState("36");
-  const [loanAccId, setLoanAccId] = useState("");
+  const [loanAccIdInput, setLoanAccIdInput] = useState("");
   const [isIssuingLoan, setIsIssuingLoan] = useState(false);
+
+  const defaultAccNum = selectedCustomer?.accounts?.[0]?.accountNumber || "";
+  const depositAccNumber = depositAccNumberInput || defaultAccNum;
+  const loanAccId = loanAccIdInput || defaultAccNum;
 
   // Fetch initial customers and DLQ records on load for operators
   useEffect(() => {
@@ -113,8 +117,8 @@ export default function OperatorPage() {
             setCustomerRecords(cJson.data.customers);
             setSelectedCustomer(cJson.data.customers[0]);
             if (cJson.data.customers[0].accounts?.length > 0) {
-              setDepositAccNumber(cJson.data.customers[0].accounts[0].accountNumber);
-              setLoanAccId(cJson.data.customers[0].accounts[0].accountNumber);
+              setDepositAccNumberInput(cJson.data.customers[0].accounts[0].accountNumber);
+              setLoanAccIdInput(cJson.data.customers[0].accounts[0].accountNumber);
             }
           }
         }
@@ -127,13 +131,7 @@ export default function OperatorPage() {
     loadData();
   }, [isOperator]);
 
-  // Update selected account defaults when customer selection changes
-  useEffect(() => {
-    if (selectedCustomer && selectedCustomer.accounts.length > 0) {
-      setDepositAccNumber(selectedCustomer.accounts[0].accountNumber);
-      setLoanAccId(selectedCustomer.accounts[0].accountNumber);
-    }
-  }, [selectedCustomer]);
+
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -497,7 +495,7 @@ export default function OperatorPage() {
                       type="text"
                       required
                       value={depositAccNumber}
-                      onChange={(e) => setDepositAccNumber(e.target.value)}
+                      onChange={(e) => setDepositAccNumberInput(e.target.value)}
                       placeholder="e.g. VG-SAV-001234"
                       className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-border text-foreground font-mono text-xs focus:border-emerald-400 focus:outline-none"
                     />
@@ -609,7 +607,7 @@ export default function OperatorPage() {
                     {selectedCustomer && selectedCustomer.accounts.length > 0 ? (
                       <select
                         value={loanAccId}
-                        onChange={(e) => setLoanAccId(e.target.value)}
+                        onChange={(e) => setLoanAccIdInput(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg bg-muted/50 border border-border text-foreground font-mono text-xs focus:border-cyan-400 focus:outline-none"
                       >
                         {selectedCustomer.accounts.map((acc) => (
@@ -623,7 +621,7 @@ export default function OperatorPage() {
                         type="text"
                         required
                         value={loanAccId}
-                        onChange={(e) => setLoanAccId(e.target.value)}
+                        onChange={(e) => setLoanAccIdInput(e.target.value)}
                         placeholder="Enter Target Account Number (e.g. VG-SAV-001234)"
                         className="w-full px-3 py-2 rounded-lg bg-muted/50 border border-border text-foreground font-mono text-xs focus:border-cyan-400 focus:outline-none"
                       />

@@ -162,7 +162,7 @@ export default function LoansPage() {
           <form onSubmit={handleExecuteRepay} className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider">Source Account</Label>
-              <select value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)}
+              <select value={fromAccountId} onChange={(e) => setFromAccountIdInput(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-xs focus:border-ring focus:outline-none font-mono">
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>{acc.type} ({acc.accountNumber}) — LKR {acc.balance.toLocaleString()}</option>
@@ -171,7 +171,7 @@ export default function LoansPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider">Repayment Amount (LKR)</Label>
-              <Input type="number" required value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} className="font-mono text-lg font-bold" />
+              <Input type="number" required value={repayAmount} onChange={(e) => setRepayAmountInput(e.target.value)} className="font-mono text-lg font-bold" />
             </div>
             <Button type="submit" className="w-full">Confirm Repayment</Button>
           </form>
