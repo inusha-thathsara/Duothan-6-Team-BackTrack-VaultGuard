@@ -80,12 +80,16 @@ export async function POST(request: NextRequest) {
       role: user.role as "CUSTOMER" | "SUPPORT_OPERATOR",
     };
 
-    // Dispatch welcome email with account details via Resend Email Gateway
-    await emailService.sendWelcomeAccountEmail({
-      email: user.email,
-      fullName: user.fullName,
-      accountNumber: accNum,
-    });
+    // Dispatch welcome email with account details via Resend Email Gateway (non-blocking)
+    try {
+      await emailService.sendWelcomeAccountEmail({
+        email: user.email,
+        fullName: user.fullName,
+        accountNumber: accNum,
+      });
+    } catch (emailErr) {
+      console.warn("[Register] Non-fatal email dispatch warning:", emailErr);
+    }
 
     const token = await signSessionToken(userPayload);
 
@@ -113,6 +117,8 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 8,
       path: "/",
     });
+
+    return response;
 
   } catch (error: unknown) {
     if (error instanceof z.ZodError) {
