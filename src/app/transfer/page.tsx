@@ -21,7 +21,8 @@ export default function TransferPage() {
     useVaultGuard();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [fromAccountId, setFromAccountId] = useState(primaryAccount?.id || accounts[0]?.id || "");
+  const [fromAccountIdInput, setFromAccountIdInput] = useState("");
+  const fromAccountId = fromAccountIdInput || primaryAccount?.id || accounts[0]?.id || "";
   const [selectedPayeeId, setSelectedPayeeId] = useState(payees[0]?.id || "");
   const [newPayeeName, setNewPayeeName] = useState("");
   const [newPayeeAccount, setNewPayeeAccount] = useState("");
@@ -33,13 +34,15 @@ export default function TransferPage() {
 
   const numAmount = parseFloat(amount) || 0;
   const fee = 50.0;
-  const isHighRisk = numAmount > 50000 || isNewPayee;
+  const isHighRisk = numAmount > 5000 || isNewPayee;
+
+  const selectedAccount = accounts.find((a) => a.id === fromAccountId) || primaryAccount || accounts[0];
 
   const handleReviewStep = (e: React.FormEvent) => {
     e.preventDefault();
     if (isPaymentsDegraded) { addToast({ type: "error", title: "Action Suspended", message: "Payments service is in degraded mode." }); return; }
     if (numAmount <= 0) { addToast({ type: "error", title: "Invalid Amount", message: "Amount must be greater than zero." }); return; }
-    if (numAmount > (primaryAccount?.balance || 0)) { addToast({ type: "error", title: "Insufficient Funds", message: "Amount exceeds available balance." }); return; }
+    if (numAmount > (selectedAccount?.balance || 0)) { addToast({ type: "error", title: "Insufficient Funds", message: "Amount exceeds available balance." }); return; }
     setStep(2);
   };
 
@@ -84,9 +87,12 @@ export default function TransferPage() {
           });
           addToast({ type: "success", title: "Payment Committed", message: `Transaction committed to database.` });
           setStep(3);
+        } else if (res.status === 403 || json.data?.requiresStepUpMfa) {
+          triggerStepUpMfa(performCommit);
         } else {
           // If insufficient balance or risk error, show backend error message
-          addToast({ type: "error", title: "Transfer Error", message: json.error || json.data?.reason || "Failed to commit transfer." });
+          const errMsg = typeof json.error === "string" ? json.error : json.error?.message || json.data?.reason || "Failed to commit transfer.";
+          addToast({ type: "error", title: "Transfer Error", message: errMsg });
         }
       } catch {
         setIsSubmitting(false);
@@ -153,7 +159,7 @@ export default function TransferPage() {
                   <Label className="text-xs uppercase tracking-wider">From Account</Label>
                   <select
                     value={fromAccountId}
-                    onChange={(e) => setFromAccountId(e.target.value)}
+                    onChange={(e) => setFromAccountIdInput(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-xs focus:border-ring focus:outline-none font-mono"
                   >
                     {accounts.map((acc) => (
@@ -213,7 +219,7 @@ export default function TransferPage() {
                 {isHighRisk && (
                   <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-center gap-2.5">
                     <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span><strong className="text-amber-300">Step-Up MFA Required:</strong> Amounts &gt; LKR 50,000 or new payees require TOTP verification.</span>
+                    <span><strong className="text-amber-300">Step-Up MFA Required:</strong> Amounts &gt; LKR 5,000 or new payees require TOTP verification.</span>
                   </div>
                 )}
 

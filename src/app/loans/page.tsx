@@ -23,19 +23,25 @@ export default function LoansPage() {
     useVaultGuard();
 
   const [isRepayModalOpen, setIsRepayModalOpen] = useState(false);
-  const [repayAmount, setRepayAmount] = useState("22000");
-  const [fromAccountId, setFromAccountId] = useState(primaryAccount?.id || accounts[0]?.id || "");
+  const [repayAmountInput, setRepayAmountInput] = useState("");
+  const [fromAccountIdInput, setFromAccountIdInput] = useState("");
 
   const activeLoan = loans[0];
+  const fromAccountId = fromAccountIdInput || primaryAccount?.id || accounts[0]?.id || "";
+  const repayAmount = repayAmountInput || (activeLoan?.nextPaymentAmount ? String(activeLoan.nextPaymentAmount) : "5000");
 
-  const handleExecuteRepay = (e: React.FormEvent) => {
+  const handleExecuteRepay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isPaymentsDegraded) { addToast({ type: "error", title: "Action Suspended", message: "Payments in degraded mode." }); return; }
     const amountNum = parseFloat(repayAmount) || 0;
     if (amountNum <= 0) return;
-    const ok = repayLoan(activeLoan.id, amountNum, fromAccountId);
+    const ok = await repayLoan(activeLoan.id, amountNum, fromAccountId);
     if (ok) setIsRepayModalOpen(false);
   };
+
+  const formattedDueDate = activeLoan?.nextDueDate
+    ? new Date(activeLoan.nextDueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    : "01 Aug 2026";
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -82,7 +88,7 @@ export default function LoansPage() {
                     <div>
                       <span className="text-[11px] text-muted-foreground">Next Payment Due:</span>
                       <strong className="block font-mono text-xs mt-0.5">
-                        01 Aug 2026 — LKR {activeLoan.nextPaymentAmount.toLocaleString()}
+                        {formattedDueDate} — LKR {activeLoan.nextPaymentAmount.toLocaleString()}
                       </strong>
                     </div>
                     <Button onClick={() => setIsRepayModalOpen(true)} disabled={isPaymentsDegraded || activeLoan.status === "PAID_OFF"} size="sm">
@@ -102,10 +108,12 @@ export default function LoansPage() {
                     <div key={sch.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border font-mono text-xs">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="text-muted-foreground">{sch.dueDate}</span>
+                        <span className="text-muted-foreground">
+                          {new Date(sch.dueDate).toISOString().split("T")[0]}
+                        </span>
                       </div>
                       <span className="font-semibold">LKR {sch.amount.toLocaleString()}</span>
-                      <Badge variant={sch.status === "PAID" ? "secondary" : "outline"} className="text-[10px] font-sans">
+                      <Badge variant={sch.status === "PAID" ? "secondary" : sch.status === "OVERDUE" ? "destructive" : "outline"} className="text-[10px] font-sans">
                         {sch.status}
                       </Badge>
                     </div>
@@ -154,7 +162,7 @@ export default function LoansPage() {
           <form onSubmit={handleExecuteRepay} className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider">Source Account</Label>
-              <select value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)}
+              <select value={fromAccountId} onChange={(e) => setFromAccountIdInput(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-xs focus:border-ring focus:outline-none font-mono">
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>{acc.type} ({acc.accountNumber}) — LKR {acc.balance.toLocaleString()}</option>
@@ -163,7 +171,7 @@ export default function LoansPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider">Repayment Amount (LKR)</Label>
-              <Input type="number" required value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} className="font-mono text-lg font-bold" />
+              <Input type="number" required value={repayAmount} onChange={(e) => setRepayAmountInput(e.target.value)} className="font-mono text-lg font-bold" />
             </div>
             <Button type="submit" className="w-full">Confirm Repayment</Button>
           </form>

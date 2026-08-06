@@ -32,7 +32,11 @@ export const ToastContainer: React.FC = () => {
           </div>
           <div className="flex-1">
             <h4 className="font-semibold text-xs text-foreground leading-snug">{toast.title}</h4>
-            <p className="mt-0.5 text-muted-foreground text-[11px] leading-relaxed">{toast.message}</p>
+            <p className="mt-0.5 text-muted-foreground text-[11px] leading-relaxed">
+              {typeof toast.message === "object" && toast.message !== null
+                ? (toast.message as { message?: string }).message || JSON.stringify(toast.message)
+                : String(toast.message || "")}
+            </p>
           </div>
           <button
             onClick={() => removeToast(toast.id)}

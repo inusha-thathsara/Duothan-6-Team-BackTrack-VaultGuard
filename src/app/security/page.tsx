@@ -21,8 +21,8 @@ export default function SecurityPage() {
   const { trustedDevices, revokeDevice, securityEvents, addToast, user, setUser } = useVaultGuard();
 
   // Profile Form state
-  const [fullName, setFullName] = useState(user?.fullName || "");
-  const [email, setEmail] = useState(user?.email || "");
+  const [fullNameInput, setFullNameInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
   const [phone, setPhone] = useState("");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
@@ -38,6 +38,11 @@ export default function SecurityPage() {
   const [isVerifyingTotp, setIsVerifyingTotp] = useState(false);
 
   const [liveSecurityEvents, setLiveSecurityEvents] = useState<Array<{ id: string; action: string; device: string; timestamp: string }>>([]);
+  const [mfaEnabledState, setMfaEnabledState] = useState<boolean | null>(null);
+
+  const fullName = fullNameInput || user?.fullName || "";
+  const email = emailInput || user?.email || "";
+  const mfaEnabled = mfaEnabledState !== null ? mfaEnabledState : !!user?.mfaEnabled;
 
   useEffect(() => {
     // Fetch profile from backend
@@ -45,9 +50,10 @@ export default function SecurityPage() {
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data) {
-          setFullName(json.data.fullName || "");
-          setEmail(json.data.email || "");
+          setFullNameInput(json.data.fullName || "");
+          setEmailInput(json.data.email || "");
           setPhone(json.data.phoneNumber || "");
+          setMfaEnabledState(!!json.data.mfaEnabled);
         }
       })
       .catch(() => {});
@@ -160,6 +166,10 @@ export default function SecurityPage() {
       setIsVerifyingTotp(false);
 
       if (res.ok && data.success) {
+        setMfaEnabledState(true);
+        if (setUser && user) {
+          setUser({ ...user, mfaEnabled: true });
+        }
         addToast({ type: "success", title: "2FA Activated!", message: "TOTP 2-Factor Authentication bound to your account." });
         setShowMfaModal(false);
         setTotpCode("");
@@ -201,11 +211,11 @@ export default function SecurityPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-[11px] uppercase tracking-wider">Full Legal Name</Label>
-                    <Input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+                    <Input value={fullName} onChange={(e) => setFullNameInput(e.target.value)} required />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[11px] uppercase tracking-wider">Primary Email Address</Label>
-                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <Input type="email" value={email} onChange={(e) => setEmailInput(e.target.value)} required />
                   </div>
                 </div>
 
@@ -244,9 +254,15 @@ export default function SecurityPage() {
                     <QrCode className="w-4 h-4 text-foreground" />
                     <span className="text-xs font-semibold">2-Factor Authentication (TOTP)</span>
                   </div>
-                  <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
-                    Active
-                  </Badge>
+                  {mfaEnabled || user?.mfaEnabled ? (
+                    <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+                      Active
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-500/80 border-amber-500/20">
+                      Disabled
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-[11px] text-muted-foreground">
                   Scan QR code with Google Authenticator or 1Password to link authenticator app.

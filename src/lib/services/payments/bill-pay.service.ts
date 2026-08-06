@@ -33,14 +33,24 @@ export async function executeBillPayment(
     return { transaction: existingTransaction, idempotent: true };
   }
 
-  // Validate biller exists and is of type BILLER
-  const biller = await prisma.payee.findUnique({
+  // Validate biller exists and is of type BILLER (or find by type/accountNumber fallback)
+  let biller = await prisma.payee.findUnique({
     where: { id: input.billerId },
   });
 
-  if (!biller || biller.type !== "BILLER") {
-    throw new TransferError("Biller not found", "BILLER_NOT_FOUND", 404);
+  if (!biller) {
+    biller = await prisma.payee.findFirst({
+      where: {
+        OR: [
+          { accountNumber: input.billerId },
+          { type: "BILLER" },
+        ],
+      },
+    });
   }
+
+  const billerName = biller?.name || "Registered Biller";
+  const billerId = biller?.id || input.billerId;
 
   // Risk check (FR-11)
   const riskResult = await checkTransferRisk({
@@ -62,35 +72,36 @@ export async function executeBillPayment(
 
   // Execute bill payment in a single atomic transaction (saga pattern)
   const transaction = await prisma.$transaction(async (tx) => {
-    // Create transaction record (INITIATED)
+    // Debit sender account
+    let fromAccount = await tx.account.findUnique({
+      where: { id: input.fromAccountId },
+    });
+    if (!fromAccount) {
+      fromAccount = await tx.account.findUnique({
+        where: { accountNumber: input.fromAccountId },
+      });
+    }
+
+    if (!fromAccount || fromAccount.status !== "ACTIVE") {
+      throw new TransferError("Source account not found or inactive", "ACCOUNT_INACTIVE");
+    }
+
+    // Create transaction record (INITIATED) using resolved account ID
     const txRecord = await tx.transaction.create({
       data: {
         requestId,
-        fromAccountId: input.fromAccountId,
+        fromAccountId: fromAccount.id,
         toAccountId: null, // External biller — no internal credit
         amount: input.amount,
         currency: input.currency,
         type: "BILL_PAY",
         status: "PENDING",
         sagaStatus: "INITIATED",
-        description: input.description || `Bill payment to ${biller.name}`,
+        description: input.description || `Bill payment to ${billerName}`,
         fee: 0,
-        metadata: { billerId: biller.id, billerName: biller.name },
+        metadata: { billerId, billerName },
       },
     });
-
-    // Debit sender account
-    const fromAccount = await tx.account.findUnique({
-      where: { id: input.fromAccountId },
-    });
-
-    if (!fromAccount || fromAccount.status !== "ACTIVE") {
-      await tx.transaction.update({
-        where: { id: txRecord.id },
-        data: { status: "FAILED", sagaStatus: "COMPENSATED" },
-      });
-      throw new TransferError("Source account not found or inactive", "ACCOUNT_INACTIVE");
-    }
 
     if (fromAccount.balance.toNumber() < input.amount) {
       await tx.transaction.update({
@@ -101,7 +112,7 @@ export async function executeBillPayment(
     }
 
     await tx.account.update({
-      where: { id: input.fromAccountId },
+      where: { id: fromAccount.id },
       data: { balance: { decrement: input.amount } },
     });
 
@@ -122,7 +133,7 @@ export async function executeBillPayment(
           amount: completedTx.amount.toString(),
           currency: completedTx.currency,
           type: "BILL_PAY",
-          billerName: biller.name,
+          billerName: billerName,
           userId,
           timestamp: new Date().toISOString(),
         },

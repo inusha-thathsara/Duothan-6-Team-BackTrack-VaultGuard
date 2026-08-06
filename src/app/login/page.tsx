@@ -139,12 +139,6 @@ export default function LoginPage() {
                 <ArrowRight className="w-4 h-4" />
               </Button>
 
-              <div className="text-center pt-1">
-                <Link href="/enroll" className="text-xs text-muted-foreground hover:text-foreground">
-                  Need to re-enroll security keys?
-                </Link>
-              </div>
-
               <Separator />
               <p className="text-[11px] text-muted-foreground text-center flex items-center justify-center gap-1.5">
                 <Lock className="w-3 h-3" />

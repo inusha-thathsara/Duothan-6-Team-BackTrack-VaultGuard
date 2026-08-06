@@ -39,9 +39,15 @@ export async function checkTransferRisk(params: {
   const { fromAccountId, amount, userId } = params;
 
   // 1. Get account with limits
-  const account = await prisma.account.findUnique({
+  let account = await prisma.account.findUnique({
     where: { id: fromAccountId },
   });
+
+  if (!account) {
+    account = await prisma.account.findUnique({
+      where: { accountNumber: fromAccountId },
+    });
+  }
 
   if (!account) {
     return { approved: false, requiresStepUpMfa: false, reason: "Account not found" };
@@ -65,13 +71,15 @@ export async function checkTransferRisk(params: {
     };
   }
 
+  const curr = account.currency || "LKR";
+
   // 2. Single transaction limit
   const singleLimit = account.singleLimit.toNumber();
   if (amount > singleLimit) {
     return {
       approved: false,
       requiresStepUpMfa: false,
-      reason: `Amount $${amount.toFixed(2)} exceeds single transaction limit of $${singleLimit.toFixed(2)}`,
+      reason: `Amount ${curr} ${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} exceeds single transaction limit of ${curr} ${singleLimit.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
     };
   }
 
@@ -95,7 +103,7 @@ export async function checkTransferRisk(params: {
     return {
       approved: false,
       requiresStepUpMfa: false,
-      reason: `Daily limit exceeded. Spent today: $${dailySpent.toFixed(2)}, limit: $${dailyLimit.toFixed(2)}`,
+      reason: `Daily limit exceeded. Spent today: ${curr} ${dailySpent.toLocaleString(undefined, { minimumFractionDigits: 2 })}, limit: ${curr} ${dailyLimit.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
     };
   }
 
@@ -114,7 +122,7 @@ export async function checkTransferRisk(params: {
     return {
       approved: true,
       requiresStepUpMfa: true,
-      reason: `Transfer of $${amount.toFixed(2)} exceeds $${STEP_UP_MFA_THRESHOLD} threshold — step-up MFA required`,
+      reason: `Transfer of ${curr} ${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} exceeds ${curr} ${STEP_UP_MFA_THRESHOLD.toLocaleString()} threshold — step-up MFA required`,
     };
   }
 
