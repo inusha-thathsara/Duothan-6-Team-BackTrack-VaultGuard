@@ -38,6 +38,15 @@ export interface TransactionItem {
   status: "COMPLETED" | "PENDING" | "FAILED";
   sagaStatus: "INITIATED" | "DEBITED" | "CREDITED" | "COMPLETED";
   category?: string;
+  senderName?: string;
+  senderAccountNumber?: string;
+  recipientName?: string;
+  recipientAccountNumber?: string;
+  metadata?: {
+    loanId?: string;
+    remainingBalance?: number;
+    targetMonth?: string;
+  };
 }
 
 export interface LoanItem {
@@ -263,7 +272,18 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 const txJson = await txRes.json();
                 if (txJson.success && Array.isArray(txJson.data?.items)) {
                   setTransactions(
-                    txJson.data.items.map((item: { id: string; requestId?: string; createdAt?: string; type?: string; description?: string; toAccount?: { accountNumber: string }; fromAccount?: { accountNumber: string }; amount: number | string; status?: string }) => ({
+                    txJson.data.items.map((item: {
+                      id: string;
+                      requestId?: string;
+                      createdAt?: string;
+                      type?: string;
+                      description?: string;
+                      toAccount?: { accountNumber: string; user?: { fullName: string } };
+                      fromAccount?: { accountNumber: string; user?: { fullName: string } };
+                      amount: number | string;
+                      status?: string;
+                      metadata?: { loanId?: string; remainingBalance?: number; targetMonth?: string };
+                    }) => ({
                       id: item.id,
                       requestId: item.requestId || `REQ-${item.id.substring(0, 8)}`,
                       date: item.createdAt || new Date().toISOString(),
@@ -276,6 +296,11 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                       status: item.status || "COMPLETED",
                       sagaStatus: item.status || "COMPLETED",
                       category: item.type === "INCOME" ? "Income" : "Transfer",
+                      senderName: item.fromAccount?.user?.fullName || "VaultGuard System",
+                      senderAccountNumber: item.fromAccount?.accountNumber || "",
+                      recipientName: item.toAccount?.user?.fullName || item.description || "External Payee",
+                      recipientAccountNumber: item.toAccount?.accountNumber || "",
+                      metadata: item.metadata,
                     }))
                   );
                 } else {

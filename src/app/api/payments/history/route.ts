@@ -29,26 +29,66 @@ export async function GET(request: NextRequest) {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
     const query = historyQuerySchema.parse(searchParams);
 
-    // Get user's accounts to scope the query
-    const userAccounts = await prisma.account.findMany({
-      where: { userId: auth.userId },
-      select: { id: true },
-    });
-    const accountIds = userAccounts.map((a) => a.id);
+    const isOperator = auth.role === "SUPPORT_OPERATOR";
+    let where: Prisma.TransactionWhereInput = {};
 
-    if (accountIds.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: { items: [], total: 0, page: query.page, limit: query.limit, totalPages: 0 },
+    if (isOperator) {
+      if (query.search) {
+        // Find users matching name, email, or national ID
+        const matchingUsers = await prisma.user.findMany({
+          where: {
+            OR: [
+              { fullName: { contains: query.search, mode: "insensitive" } },
+              { email: { contains: query.search, mode: "insensitive" } },
+              { nationalId: { contains: query.search, mode: "insensitive" } },
+            ],
+          },
+          select: { id: true },
+        });
+        const matchingUserIds = matchingUsers.map((u) => u.id);
+
+        const targetAccounts = await prisma.account.findMany({
+          where: { userId: { in: matchingUserIds } },
+          select: { id: true },
+        });
+        const targetAccountIds = targetAccounts.map((a) => a.id);
+
+        where = {
+          OR: [
+            { fromAccountId: { in: targetAccountIds } },
+            { toAccountId: { in: targetAccountIds } },
+            { description: { contains: query.search, mode: "insensitive" } },
+            { requestId: { contains: query.search, mode: "insensitive" } },
+          ],
+        };
+      } else {
+        where = {};
+      }
+    } else {
+      // Get user's accounts to scope the query
+      const userAccounts = await prisma.account.findMany({
+        where: { userId: auth.userId },
+        select: { id: true },
       });
-    }
+      const accountIds = userAccounts.map((a) => a.id);
 
-    // Build where clause — show transactions where user is sender OR receiver
-    const where: Prisma.TransactionWhereInput = {
-      OR: query.accountId
-        ? [{ fromAccountId: query.accountId }, { toAccountId: query.accountId }]
-        : [{ fromAccountId: { in: accountIds } }, { toAccountId: { in: accountIds } }],
-    };
+      if (accountIds.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: { items: [], total: 0, page: query.page, limit: query.limit, totalPages: 0 },
+        });
+      }
+
+      where = {
+        OR: query.accountId
+          ? [{ fromAccountId: query.accountId }, { toAccountId: query.accountId }]
+          : [{ fromAccountId: { in: accountIds } }, { toAccountId: { in: accountIds } }],
+      };
+
+      if (query.search) {
+        where.description = { contains: query.search, mode: "insensitive" };
+      }
+    }
 
     if (query.type) where.type = query.type;
     if (query.status) where.status = query.status;
@@ -59,10 +99,6 @@ export async function GET(request: NextRequest) {
       if (query.to) where.createdAt.lte = query.to;
     }
 
-    if (query.search) {
-      where.description = { contains: query.search, mode: "insensitive" };
-    }
-
     // Execute with pagination
     const [items, total] = await Promise.all([
       prisma.transaction.findMany({
@@ -71,8 +107,26 @@ export async function GET(request: NextRequest) {
         skip: (query.page - 1) * query.limit,
         take: query.limit,
         include: {
-          fromAccount: { select: { accountNumber: true } },
-          toAccount: { select: { accountNumber: true } },
+          fromAccount: {
+            select: {
+              accountNumber: true,
+              user: {
+                select: {
+                  fullName: true,
+                }
+              }
+            }
+          },
+          toAccount: {
+            select: {
+              accountNumber: true,
+              user: {
+                select: {
+                  fullName: true,
+                }
+              }
+            }
+          },
         },
       }),
       prisma.transaction.count({ where }),

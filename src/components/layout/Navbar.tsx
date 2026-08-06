@@ -12,7 +12,6 @@ import {
   History,
   Landmark,
   ShieldCheck,
-  UserCheck,
   Menu,
   X,
   LogOut,
@@ -27,14 +26,15 @@ export const Navbar: React.FC = () => {
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/transfer", label: "Transfer", icon: Send },
-    { href: "/bill-pay", label: "Bill Pay", icon: CreditCard },
+    ...(!isOperator ? [
+      { href: "/transfer", label: "Transfer", icon: Send },
+      { href: "/bill-pay", label: "Bill Pay", icon: CreditCard },
+    ] : []),
     { href: "/history", label: "History", icon: History },
-    { href: "/loans", label: "Loans", icon: Landmark },
+    ...(!isOperator ? [
+      { href: "/loans", label: "Loans", icon: Landmark },
+    ] : []),
     { href: "/security", label: "Security", icon: ShieldCheck },
-    ...(isOperator
-      ? [{ href: "/operator", label: "Operator", icon: UserCheck }]
-      : []),
   ];
 
   return (
