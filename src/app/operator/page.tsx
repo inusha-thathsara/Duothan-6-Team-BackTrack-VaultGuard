@@ -17,6 +17,7 @@ import {
   PlusCircle,
   Landmark,
   ArrowUpRight,
+  Key,
 } from "lucide-react";
 
 interface CustomerAccountRecord {
@@ -88,9 +89,92 @@ export default function OperatorPage() {
   const [loanAccIdInput, setLoanAccIdInput] = useState("");
   const [isIssuingLoan, setIsIssuingLoan] = useState(false);
 
+  // Account Recovery Form State
+  const [recoveryEmailInput, setRecoveryEmailInput] = useState("");
+  const [recoveryNationalIdInput, setRecoveryNationalIdInput] = useState("");
+  const [recoveryFullNameInput, setRecoveryFullNameInput] = useState("");
+  const [isInitiatingRecovery, setIsInitiatingRecovery] = useState(false);
+  const [generatedRecoveryLink, setGeneratedRecoveryLink] = useState("");
+
   const defaultAccNum = selectedCustomer?.accounts?.[0]?.accountNumber || "";
   const depositAccNumber = depositAccNumberInput || defaultAccNum;
   const loanAccId = loanAccIdInput || defaultAccNum;
+
+  // Sync recovery fields with selected customer
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (selectedCustomer) {
+      setRecoveryEmailInput(selectedCustomer.email || "");
+      setRecoveryNationalIdInput(selectedCustomer.nationalId || "");
+      setRecoveryFullNameInput(selectedCustomer.fullName || "");
+      setGeneratedRecoveryLink("");
+    }
+  }, [selectedCustomer]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const handleInitiateRecovery = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!recoveryEmailInput || !recoveryNationalIdInput || !recoveryFullNameInput) {
+      addToast({
+        type: "error",
+        title: "Missing Fields",
+        message: "Please fill out all customer verification fields.",
+      });
+      return;
+    }
+
+    setIsInitiatingRecovery(true);
+    setGeneratedRecoveryLink("");
+
+    try {
+      const res = await fetch("/api/admin/recover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: recoveryEmailInput,
+          nationalId: recoveryNationalIdInput,
+          fullName: recoveryFullNameInput,
+        }),
+      });
+
+      const json = await res.json();
+      setIsInitiatingRecovery(false);
+
+      if (res.ok && json.success) {
+        setGeneratedRecoveryLink(json.data.recoveryLink);
+        addToast({
+          type: "success",
+          title: "Recovery Link Dispatched",
+          message: "A secure recovery link has been generated and dispatched.",
+        });
+
+        // Add real-time audit logging entry to state
+        const newLog: AccessAuditLog = {
+          id: `audit_${Date.now()}`,
+          operator: user?.email || "op_support",
+          targetId: recoveryEmailInput,
+          reason: `Initiated customer account recovery (MFA Reset & Password Change Link Generated)`,
+          timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
+          kmsSig: `KMS-SIG-RECOV-${Math.floor(1000 + Math.random() * 9000)}`,
+        };
+        setAccessAuditLogs((prev) => [newLog, ...prev]);
+      } else {
+        addToast({
+          type: "error",
+          title: "Recovery Initiation Failed",
+          message: json.error || "Verification failed. Details do not match.",
+        });
+      }
+    } catch {
+      setIsInitiatingRecovery(false);
+      addToast({
+        type: "error",
+        title: "Recovery Initiation Failed",
+        message: "Failed to connect to recovery administration service.",
+      });
+    }
+  };
 
   // Fetch initial customers and DLQ records on load for operators
   useEffect(() => {
@@ -700,6 +784,102 @@ export default function OperatorPage() {
                     Disburse Loan Facility to Account
                   </button>
                 </form>
+              </div>
+            </div>
+
+            {/* OPERATOR ACTION PANEL: CUSTOMER ACCOUNT RECOVERY */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-5">
+              <div className="lg:col-span-12 bg-card rounded-xl p-5 border border-border shadow-sm space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-border">
+                  <Key className="w-4 h-4 text-amber-500" />
+                  <h2 className="text-base font-bold text-foreground">Customer Account Recovery Control</h2>
+                </div>
+
+                <form onSubmit={handleInitiateRecovery} className="space-y-4">
+                  <p className="text-xs text-muted-foreground">
+                    Initiate a secure password and MFA reset token. Ensure physical identification has been validated prior to dispatch.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground/80 uppercase tracking-wider mb-1">
+                        Customer Email
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={recoveryEmailInput}
+                        onChange={(e) => setRecoveryEmailInput(e.target.value)}
+                        placeholder="customer@vaultguard.com"
+                        className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground/80 uppercase tracking-wider mb-1">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={recoveryFullNameInput}
+                        onChange={(e) => setRecoveryFullNameInput(e.target.value)}
+                        placeholder="Alex Perera"
+                        className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground/80 uppercase tracking-wider mb-1">
+                        National ID / NIC
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={recoveryNationalIdInput}
+                        onChange={(e) => setRecoveryNationalIdInput(e.target.value)}
+                        placeholder="e.g. 941820491V or 199418204918"
+                        className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-border text-foreground font-mono text-xs focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isInitiatingRecovery}
+                    className="w-full py-2.5 px-4 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isInitiatingRecovery ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Key className="w-3.5 h-3.5" />}
+                    Initiate Account Recovery &amp; Dispatch Token
+                  </button>
+                </form>
+
+                {generatedRecoveryLink && (
+                  <div className="mt-4 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-2 text-xs">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Recovery Link Dispatched Successfully</span>
+                    </div>
+                    <p className="text-muted-foreground">
+                      For validation and local development testing, use this direct link to complete recovery for the customer:
+                    </p>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1">
+                      <input
+                        type="text"
+                        readOnly
+                        value={generatedRecoveryLink}
+                        className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-mono text-[11px] text-foreground select-all outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => window.open(generatedRecoveryLink, "_blank")}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded text-[11px] transition-colors text-center"
+                      >
+                        Open Recovery Page
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
