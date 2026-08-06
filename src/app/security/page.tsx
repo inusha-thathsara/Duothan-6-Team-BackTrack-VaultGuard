@@ -39,6 +39,16 @@ export default function SecurityPage() {
 
   const [liveSecurityEvents, setLiveSecurityEvents] = useState<Array<{ id: string; action: string; device: string; timestamp: string }>>([]);
 
+  const [mfaEnabled, setMfaEnabled] = useState(user?.mfaEnabled || false);
+
+  useEffect(() => {
+    if (user) {
+      setFullName(user.fullName || "");
+      setEmail(user.email || "");
+      setMfaEnabled(!!user.mfaEnabled);
+    }
+  }, [user]);
+
   useEffect(() => {
     // Fetch profile from backend
     fetch("/api/user/profile")
@@ -48,6 +58,7 @@ export default function SecurityPage() {
           setFullName(json.data.fullName || "");
           setEmail(json.data.email || "");
           setPhone(json.data.phoneNumber || "");
+          setMfaEnabled(!!json.data.mfaEnabled);
         }
       })
       .catch(() => {});
@@ -160,6 +171,10 @@ export default function SecurityPage() {
       setIsVerifyingTotp(false);
 
       if (res.ok && data.success) {
+        setMfaEnabled(true);
+        if (setUser && user) {
+          setUser({ ...user, mfaEnabled: true });
+        }
         addToast({ type: "success", title: "2FA Activated!", message: "TOTP 2-Factor Authentication bound to your account." });
         setShowMfaModal(false);
         setTotpCode("");
@@ -244,9 +259,15 @@ export default function SecurityPage() {
                     <QrCode className="w-4 h-4 text-foreground" />
                     <span className="text-xs font-semibold">2-Factor Authentication (TOTP)</span>
                   </div>
-                  <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
-                    Active
-                  </Badge>
+                  {mfaEnabled || user?.mfaEnabled ? (
+                    <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+                      Active
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-500/80 border-amber-500/20">
+                      Disabled
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-[11px] text-muted-foreground">
                   Scan QR code with Google Authenticator or 1Password to link authenticator app.

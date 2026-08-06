@@ -15,7 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Zap, Smartphone, CheckCircle2, RefreshCw } from "lucide-react";
 
 export default function BillPayPage() {
-  const { payees, addTransaction, isPaymentsDegraded, triggerStepUpMfa, addToast } = useVaultGuard();
+  const { accounts, primaryAccount, payees, addTransaction, isPaymentsDegraded, triggerStepUpMfa, addToast } = useVaultGuard();
 
   const [selectedBiller, setSelectedBiller] = useState(payees.find((p) => p.type === "BILLER")?.id || "pay_2");
   const [billerAccount, setBillerAccount] = useState("");
@@ -36,6 +36,7 @@ export default function BillPayPage() {
     const executeBillPay = async () => {
       setIsSubmitting(true);
       try {
+        const sourceAccountId = primaryAccount?.id || accounts[0]?.id || "";
         const res = await fetch("/api/payments/bill-pay", {
           method: "POST",
           headers: {
@@ -43,7 +44,7 @@ export default function BillPayPage() {
             "x-request-id": reqId,
           },
           body: JSON.stringify({
-            fromAccountId: payees[0]?.id ? undefined : undefined,
+            fromAccountId: sourceAccountId,
             billerId: selectedBiller,
             amount: numAmount,
             description: `${activeBiller?.name || "Biller"} Settlement`,
@@ -68,7 +69,8 @@ export default function BillPayPage() {
           setSuccessTx({ reqId, billerName: activeBiller?.name || "Biller", amount: numAmount });
           addToast({ type: "success", title: "Bill Payment Settled", message: `LKR ${numAmount.toLocaleString()} paid to ${activeBiller?.name}.` });
         } else {
-          addToast({ type: "error", title: "Payment Failed", message: json.error || "Failed to process bill payment in database." });
+          const errMsg = typeof json.error === "string" ? json.error : json.error?.message || "Failed to process bill payment in database.";
+          addToast({ type: "error", title: "Payment Failed", message: errMsg });
         }
       } catch {
         setIsSubmitting(false);
@@ -88,7 +90,7 @@ export default function BillPayPage() {
       }
     };
 
-    if (numAmount > 50000) triggerStepUpMfa(executeBillPay);
+    if (numAmount > 5000) triggerStepUpMfa(executeBillPay);
     else executeBillPay();
   };
 

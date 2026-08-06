@@ -23,19 +23,35 @@ export default function LoansPage() {
     useVaultGuard();
 
   const [isRepayModalOpen, setIsRepayModalOpen] = useState(false);
-  const [repayAmount, setRepayAmount] = useState("22000");
+  const [repayAmount, setRepayAmount] = useState("5000");
   const [fromAccountId, setFromAccountId] = useState(primaryAccount?.id || accounts[0]?.id || "");
 
   const activeLoan = loans[0];
 
-  const handleExecuteRepay = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    if (activeLoan?.nextPaymentAmount) {
+      setRepayAmount(String(activeLoan.nextPaymentAmount));
+    }
+  }, [activeLoan?.nextPaymentAmount]);
+
+  React.useEffect(() => {
+    if (accounts.length > 0 && !fromAccountId) {
+      setFromAccountId(primaryAccount?.id || accounts[0]?.id || "");
+    }
+  }, [accounts, primaryAccount, fromAccountId]);
+
+  const handleExecuteRepay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isPaymentsDegraded) { addToast({ type: "error", title: "Action Suspended", message: "Payments in degraded mode." }); return; }
     const amountNum = parseFloat(repayAmount) || 0;
     if (amountNum <= 0) return;
-    const ok = repayLoan(activeLoan.id, amountNum, fromAccountId);
+    const ok = await repayLoan(activeLoan.id, amountNum, fromAccountId);
     if (ok) setIsRepayModalOpen(false);
   };
+
+  const formattedDueDate = activeLoan?.nextDueDate
+    ? new Date(activeLoan.nextDueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    : "01 Aug 2026";
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -82,7 +98,7 @@ export default function LoansPage() {
                     <div>
                       <span className="text-[11px] text-muted-foreground">Next Payment Due:</span>
                       <strong className="block font-mono text-xs mt-0.5">
-                        01 Aug 2026 — LKR {activeLoan.nextPaymentAmount.toLocaleString()}
+                        {formattedDueDate} — LKR {activeLoan.nextPaymentAmount.toLocaleString()}
                       </strong>
                     </div>
                     <Button onClick={() => setIsRepayModalOpen(true)} disabled={isPaymentsDegraded || activeLoan.status === "PAID_OFF"} size="sm">
@@ -102,10 +118,12 @@ export default function LoansPage() {
                     <div key={sch.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border font-mono text-xs">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="text-muted-foreground">{sch.dueDate}</span>
+                        <span className="text-muted-foreground">
+                          {new Date(sch.dueDate).toISOString().split("T")[0]}
+                        </span>
                       </div>
                       <span className="font-semibold">LKR {sch.amount.toLocaleString()}</span>
-                      <Badge variant={sch.status === "PAID" ? "secondary" : "outline"} className="text-[10px] font-sans">
+                      <Badge variant={sch.status === "PAID" ? "secondary" : sch.status === "OVERDUE" ? "destructive" : "outline"} className="text-[10px] font-sans">
                         {sch.status}
                       </Badge>
                     </div>

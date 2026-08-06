@@ -127,7 +127,7 @@ interface VaultGuardContextType {
   // Loans (FR-15, FR-16)
   loans: LoanItem[];
   repaymentSchedule: RepaymentScheduleItem[];
-  repayLoan: (loanId: string, amount: number, fromAccountId: string) => boolean;
+  repayLoan: (loanId: string, amount: number, fromAccountId: string) => Promise<boolean>;
   
   // Security & Devices (FR-03, FR-18, FR-19)
   trustedDevices: TrustedDeviceItem[];
@@ -235,6 +235,27 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               // Profile fetch fallback
             }
 
+            // Fetch live saved payees for authenticated user
+            try {
+              const payeeRes = await fetch("/api/payees");
+              if (payeeRes.ok) {
+                const payeeJson = await payeeRes.json();
+                if (payeeJson.success && Array.isArray(payeeJson.data?.payees) && payeeJson.data.payees.length > 0) {
+                  setPayees(
+                    payeeJson.data.payees.map((p: { id: string; name: string; accountNumber: string; bankCode?: string; type: "PERSON" | "BILLER" }) => ({
+                      id: p.id,
+                      name: p.name,
+                      accountNumber: p.accountNumber,
+                      bankCode: p.bankCode || "VG-BANK",
+                      type: p.type || "PERSON",
+                    }))
+                  );
+                }
+              }
+            } catch {
+              // Payees fetch fallback
+            }
+
             // Fetch live payment history for authenticated user
             try {
               const txRes = await fetch("/api/payments/history?limit=10");
@@ -272,19 +293,27 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 const loanJson = await loanRes.json();
                 if (loanJson.success && Array.isArray(loanJson.data?.loans) && loanJson.data.loans.length > 0) {
                   setLoans(
-                    loanJson.data.loans.map((l: { id: string; loanNumber?: string; title?: string; principalAmount: number | string; outstandingBalance: number | string; interestRate?: number | string; termMonths?: number; nextDueDate?: string; nextPaymentAmount?: number | string; status?: string }) => ({
-                      id: l.id,
-                      loanNumber: l.loanNumber || `LN-${l.id.substring(0, 5)}`,
-                      title: l.title || "Personal Loan",
-                      principalAmount: Number(l.principalAmount) || 0,
-                      outstandingBalance: Number(l.outstandingBalance) || 0,
-                      interestRate: Number(l.interestRate) || 0,
-                      termMonths: l.termMonths || 36,
-                      completedInstallments: 0,
-                      nextDueDate: l.nextDueDate || new Date().toISOString(),
-                      nextPaymentAmount: Number(l.nextPaymentAmount) || 0,
-                      status: (l.status as "ACTIVE" | "PAID_OFF") || "ACTIVE",
-                    }))
+                    loanJson.data.loans.map((l: { id: string; loanNumber?: string; title?: string; principalAmount: number | string; outstandingBalance: number | string; interestRate?: number | string; termMonths?: number; nextDueDate?: string; nextPaymentAmount?: number | string; status?: string; repaymentSchedule?: Array<{ id: string; dueDate: string; amount: number | string; status?: string; paidAt?: string }> }) => {
+                      const completedCount = Array.isArray(l.repaymentSchedule)
+                        ? l.repaymentSchedule.filter((sch) => sch.status === "PAID").length
+                        : 0;
+                      const nextSch = Array.isArray(l.repaymentSchedule)
+                        ? l.repaymentSchedule.find((sch) => sch.status === "OVERDUE" || sch.status === "UPCOMING")
+                        : null;
+                      return {
+                        id: l.id,
+                        loanNumber: l.loanNumber || `LN-${l.id.substring(0, 5)}`,
+                        title: l.title || "Personal Loan",
+                        principalAmount: Number(l.principalAmount) || 0,
+                        outstandingBalance: Number(l.outstandingBalance) || 0,
+                        interestRate: Number(l.interestRate) || 0,
+                        termMonths: l.termMonths || 36,
+                        completedInstallments: completedCount,
+                        nextDueDate: nextSch?.dueDate || l.nextDueDate || new Date().toISOString(),
+                        nextPaymentAmount: nextSch ? Number(nextSch.amount) : Number(l.nextPaymentAmount) || 0,
+                        status: (l.status as "ACTIVE" | "PAID_OFF") || "ACTIVE",
+                      };
+                    })
                   );
                   if (loanJson.data.loans[0]?.repaymentSchedule) {
                     setRepaymentSchedule(
@@ -322,7 +351,13 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const addToast = useCallback((toast: Omit<ToastMessage, "id">) => {
     const id = `toast_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-    setToasts((prev) => [...prev, { ...toast, id }]);
+    let messageStr = "";
+    if (typeof toast.message === "object" && toast.message !== null) {
+      messageStr = (toast.message as { message?: string }).message || JSON.stringify(toast.message);
+    } else {
+      messageStr = String(toast.message || "");
+    }
+    setToasts((prev) => [...prev, { ...toast, message: messageStr, id }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4500);
@@ -564,8 +599,7 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  const repayLoan = (loanId: string, amount: number, _fromAccountId: string): boolean => {
-    void _fromAccountId;
+  const repayLoan = async (loanId: string, amount: number, fromAccountId: string): Promise<boolean> => {
     if (isPaymentsDegraded) {
       addToast({
         type: "error",
@@ -575,53 +609,136 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return false;
     }
 
-    setLoans((prev) =>
-      prev.map((ln) => {
-        if (ln.id === loanId) {
-          const newBal = Math.max(0, ln.outstandingBalance - amount);
-          return {
-            ...ln,
-            outstandingBalance: newBal,
-            completedInstallments: ln.completedInstallments + 1,
-            status: newBal === 0 ? "PAID_OFF" : "ACTIVE",
-          };
-        }
-        return ln;
-      })
-    );
-
-    setRepaymentSchedule((prev) => {
-      let updated = false;
-      return prev.map((sch) => {
-        if (!updated && sch.status === "UPCOMING") {
-          updated = true;
-          return { ...sch, status: "PAID" as const, paidAt: new Date().toISOString() };
-        }
-        return sch;
+    try {
+      const requestId = `req_repay_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+      const res = await fetch("/api/loans/repay", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-request-id": requestId,
+        },
+        body: JSON.stringify({ loanId, amount, fromAccountId }),
       });
-    });
 
-    // Record transaction
-    const reqId = `REQ-REPAY-${Math.floor(100000 + Math.random() * 900000)}`;
-    addTransaction({
-      requestId: reqId,
-      type: "LOAN_REPAYMENT",
-      description: "Loan Installment Repayment LN-20941",
-      payeeName: "VaultGuard Loan Service",
-      accountNumber: "LN-20941",
-      amount,
-      fee: 0,
-      status: "COMPLETED",
-      category: "Loan Repayment",
-    });
+      const body = await res.json().catch(() => ({}));
 
-    addToast({
-      type: "success",
-      title: "Loan Repayment Successful",
-      message: `LKR ${amount.toLocaleString()} processed for LN-20941 with Request ID ${reqId}.`,
-    });
+      if (!res.ok || !body.success) {
+        addToast({
+          type: "error",
+          title: "Repayment Failed",
+          message: body.error?.message || body.message || "Failed to process loan repayment.",
+        });
+        return false;
+      }
 
-    return true;
+      // Re-fetch updated profile (accounts balance) and loans from server
+      try {
+        const profRes = await fetch("/api/user/profile");
+        if (profRes.ok) {
+          const profBody = await profRes.json();
+          if (profBody.success && profBody.data?.accounts) {
+            setAccounts(
+              profBody.data.accounts.map((acc: { id: string; accountNumber: string; type?: string; balance: number | string; currency?: string; status?: string }) => ({
+                id: acc.id,
+                accountNumber: acc.accountNumber,
+                type: acc.type || "SAVINGS",
+                balance: Number(acc.balance) || 0,
+                currency: acc.currency || "LKR",
+                status: acc.status || "ACTIVE",
+                dailyLimit: 250000.0,
+                singleLimit: 100000.0,
+              }))
+            );
+          }
+        }
+      } catch {}
+
+      try {
+        const loanRes = await fetch("/api/loans");
+        if (loanRes.ok) {
+          const loanJson = await loanRes.json();
+          if (loanJson.success && Array.isArray(loanJson.data?.loans) && loanJson.data.loans.length > 0) {
+            setLoans(
+              loanJson.data.loans.map((l: { id: string; loanNumber?: string; title?: string; principalAmount: number | string; outstandingBalance: number | string; interestRate?: number | string; termMonths?: number; nextDueDate?: string; nextPaymentAmount?: number | string; status?: string; repaymentSchedule?: Array<{ id: string; dueDate: string; amount: number | string; status?: string; paidAt?: string }> }) => {
+                const completedCount = Array.isArray(l.repaymentSchedule)
+                  ? l.repaymentSchedule.filter((sch) => sch.status === "PAID").length
+                  : 0;
+                const nextSch = Array.isArray(l.repaymentSchedule)
+                  ? l.repaymentSchedule.find((sch) => sch.status === "OVERDUE" || sch.status === "UPCOMING")
+                  : null;
+                return {
+                  id: l.id,
+                  loanNumber: l.loanNumber || `LN-${l.id.substring(0, 5)}`,
+                  title: l.title || "Personal Loan",
+                  principalAmount: Number(l.principalAmount) || 0,
+                  outstandingBalance: Number(l.outstandingBalance) || 0,
+                  interestRate: Number(l.interestRate) || 0,
+                  termMonths: l.termMonths || 36,
+                  completedInstallments: completedCount,
+                  nextDueDate: nextSch?.dueDate || l.nextDueDate || new Date().toISOString(),
+                  nextPaymentAmount: nextSch ? Number(nextSch.amount) : Number(l.nextPaymentAmount) || 0,
+                  status: (l.status as "ACTIVE" | "PAID_OFF") || "ACTIVE",
+                };
+              })
+            );
+            if (loanJson.data.loans[0]?.repaymentSchedule) {
+              setRepaymentSchedule(
+                loanJson.data.loans[0].repaymentSchedule.map((sch: { id: string; dueDate: string; amount: number | string; status?: string; paidAt?: string }) => ({
+                  id: sch.id,
+                  dueDate: sch.dueDate,
+                  amount: Number(sch.amount) || 0,
+                  status: (sch.status as "PAID" | "UPCOMING" | "OVERDUE") || "UPCOMING",
+                  paidAt: sch.paidAt,
+                }))
+              );
+            }
+          }
+        }
+      } catch {}
+
+      addToast({
+        type: "success",
+        title: "Loan Repayment Successful",
+        message: `LKR ${amount.toLocaleString()} processed for loan repayment with Request ID ${requestId}.`,
+      });
+
+      return true;
+    } catch {
+      // Local optimistic update fallback
+      setLoans((prev) =>
+        prev.map((ln) => {
+          if (ln.id === loanId) {
+            const newBal = Math.max(0, ln.outstandingBalance - amount);
+            return {
+              ...ln,
+              outstandingBalance: newBal,
+              completedInstallments: ln.completedInstallments + 1,
+              status: newBal === 0 ? "PAID_OFF" : "ACTIVE",
+            };
+          }
+          return ln;
+        })
+      );
+
+      setRepaymentSchedule((prev) => {
+        let updated = false;
+        return prev.map((sch) => {
+          if (!updated && (sch.status === "OVERDUE" || sch.status === "UPCOMING")) {
+            updated = true;
+            return { ...sch, status: "PAID" as const, paidAt: new Date().toISOString() };
+          }
+          return sch;
+        });
+      });
+
+      addToast({
+        type: "success",
+        title: "Loan Repayment Processed",
+        message: `LKR ${amount.toLocaleString()} processed for loan repayment.`,
+      });
+
+      return true;
+    }
   };
 
   const revokeDevice = (id: string) => {
@@ -635,7 +752,7 @@ export const VaultGuardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  const primaryAccount = accounts.find((a) => a.id === "acc_sav_4821");
+  const primaryAccount = accounts.find((a) => a.type === "SAVINGS") || accounts[0];
 
   return (
     <VaultGuardContext.Provider

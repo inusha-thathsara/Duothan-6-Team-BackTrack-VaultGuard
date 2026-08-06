@@ -140,11 +140,11 @@ export const StepUpMfaModal: React.FC = () => {
             variant="ghost"
             size="sm"
             onClick={() => {
-              setCode(["1", "3", "5", "7", "9", "2"]);
-              addToast({ type: "info", title: "Demo Code Filled", message: "Test code 135792 inserted." });
+              setCode(["1", "2", "3", "4", "5", "6"]);
+              addToast({ type: "info", title: "Demo Code Filled", message: "Test code 123456 inserted." });
             }}
           >
-            Auto-fill Demo Code (135792)
+            Auto-fill Demo Code (123456)
           </Button>
         </div>
       </DialogContent>

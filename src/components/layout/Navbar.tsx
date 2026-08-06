@@ -121,7 +121,7 @@ export const Navbar: React.FC = () => {
             ) : (
               <Link
                 href="/login"
-                className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/80 text-white font-medium text-xs transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-colors"
               >
                 Sign In
               </Link>

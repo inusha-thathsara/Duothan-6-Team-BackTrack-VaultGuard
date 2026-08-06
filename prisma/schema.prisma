@@ -137,7 +137,7 @@ model Account {
   accountNumber String        @unique @map("account_number")
   type          AccountType   @default(SAVINGS)
   balance       Decimal       @default(0) @db.Decimal(15, 2)
-  currency      String        @default("USD")
+  currency      String        @default("LKR")
   status        AccountStatus @default(ACTIVE)
   dailyLimit    Decimal       @default(10000) @db.Decimal(15, 2) @map("daily_limit")
   singleLimit   Decimal       @default(5000) @db.Decimal(15, 2) @map("single_limit")
@@ -183,7 +183,7 @@ model Transaction {
   fromAccountId String            @map("from_account_id")
   toAccountId   String?           @map("to_account_id")
   amount        Decimal           @db.Decimal(15, 2)
-  currency      String            @default("USD")
+  currency      String            @default("LKR")
   type          TransactionType
   status        TransactionStatus @default(PENDING)
   sagaStatus    SagaStatus        @default(INITIATED) @map("saga_status") // §3.3 Saga tracking

@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 export const transferSchema = z.object({
-  fromAccountId: z.string().uuid("Invalid source account ID"),
-  toAccountId: z.string().uuid("Invalid destination account ID").optional(),
-  payeeId: z.string().uuid("Invalid payee ID").optional(),
+  fromAccountId: z.string().min(1, "Invalid source account ID"),
+  toAccountId: z.string().min(1, "Invalid destination account ID").optional(),
+  payeeId: z.string().min(1, "Invalid payee ID").optional(),
   amount: z
     .number()
     .positive("Amount must be positive")
@@ -16,8 +16,8 @@ export const transferSchema = z.object({
 );
 
 export const billPaySchema = z.object({
-  fromAccountId: z.string().uuid("Invalid source account ID"),
-  billerId: z.string().uuid("Invalid biller ID"),
+  fromAccountId: z.string().min(1, "Invalid source account ID"),
+  billerId: z.string().min(1, "Invalid biller ID"),
   amount: z
     .number()
     .positive("Amount must be positive")

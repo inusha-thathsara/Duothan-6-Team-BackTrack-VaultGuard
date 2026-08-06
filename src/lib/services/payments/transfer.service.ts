@@ -45,15 +45,14 @@ export async function executeTransfer(
     const payee = await prisma.payee.findUnique({
       where: { id: input.payeeId },
     });
-    if (!payee) {
-      throw new TransferError("Payee not found", "PAYEE_NOT_FOUND", 404);
-    }
-    // Look up internal account by payee's account number
-    const destAccount = await prisma.account.findUnique({
-      where: { accountNumber: payee.accountNumber },
-    });
-    if (destAccount) {
-      toAccountId = destAccount.id;
+    if (payee) {
+      // Look up internal account by payee's account number
+      const destAccount = await prisma.account.findUnique({
+        where: { accountNumber: payee.accountNumber },
+      });
+      if (destAccount) {
+        toAccountId = destAccount.id;
+      }
     }
     // If no match → external transfer (simulated: debit only)
   }
@@ -79,11 +78,25 @@ export async function executeTransfer(
   // ── Step 4: Execute Saga in a single Prisma $transaction (§3.3) ──
   // "writes ledger + outbox row in one local transaction"
   const transaction = await prisma.$transaction(async (tx) => {
-    // 4a. INITIATED — Create transaction record
+    // 4b. DEBITED — Resolve and debit sender account
+    let fromAccount = await tx.account.findUnique({
+      where: { id: input.fromAccountId },
+    });
+    if (!fromAccount) {
+      fromAccount = await tx.account.findUnique({
+        where: { accountNumber: input.fromAccountId },
+      });
+    }
+
+    if (!fromAccount || fromAccount.status !== "ACTIVE") {
+      throw new TransferError("Source account not found or inactive", "ACCOUNT_INACTIVE");
+    }
+
+    // 4a. INITIATED — Create transaction record using resolved account ID
     const txRecord = await tx.transaction.create({
       data: {
         requestId,
-        fromAccountId: input.fromAccountId,
+        fromAccountId: fromAccount.id,
         toAccountId,
         amount: input.amount,
         currency: input.currency,
@@ -95,19 +108,6 @@ export async function executeTransfer(
       },
     });
 
-    // 4b. DEBITED — Debit sender account
-    const fromAccount = await tx.account.findUnique({
-      where: { id: input.fromAccountId },
-    });
-
-    if (!fromAccount || fromAccount.status !== "ACTIVE") {
-      await tx.transaction.update({
-        where: { id: txRecord.id },
-        data: { status: "FAILED", sagaStatus: "COMPENSATED" },
-      });
-      throw new TransferError("Source account not found or inactive", "ACCOUNT_INACTIVE");
-    }
-
     if (fromAccount.balance.toNumber() < input.amount) {
       await tx.transaction.update({
         where: { id: txRecord.id },
@@ -117,7 +117,7 @@ export async function executeTransfer(
     }
 
     await tx.account.update({
-      where: { id: input.fromAccountId },
+      where: { id: fromAccount.id },
       data: { balance: { decrement: input.amount } },
     });
 
@@ -190,16 +190,18 @@ export async function executeTransfer(
   return { transaction };
 }
 
+import { AppError } from "@/lib/middleware/error-handler";
+
 /**
  * Custom error for transfer operations with structured error code.
  */
-export class TransferError extends Error {
+export class TransferError extends AppError {
   constructor(
     message: string,
-    public code: string,
-    public statusCode: number = 400
+    code: string,
+    statusCode: number = 400
   ) {
-    super(message);
+    super(message, code, statusCode);
     this.name = "TransferError";
   }
 }
