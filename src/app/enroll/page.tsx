@@ -13,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Key, CheckCircle2, ArrowRight, RefreshCw, QrCode, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
+import { isValidNic } from "@/lib/validation/id-format";
+
 export default function EnrollPage() {
   const router = useRouter();
   const { addToast, setUser } = useVaultGuard();
@@ -29,6 +31,10 @@ export default function EnrollPage() {
 
   const handleVerifyIdentity = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValidNic(nationalId)) {
+      setErrorMsg("Invalid National ID format. Must be 9 digits + V/X (e.g. 941820491V) or 12 digits (e.g. 200012345678).");
+      return;
+    }
     setIsVerifying(true);
     setErrorMsg("");
     setTimeout(() => {

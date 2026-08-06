@@ -92,6 +92,14 @@ export interface SecurityEventItem {
   status: "SUCCESS" | "WARNING" | "BLOCKED";
 }
 
+export interface PayeeItem {
+  id: string;
+  name: string;
+  accountNumber: string;
+  bankCode?: string;
+  type?: "PERSON" | "BILLER";
+}
+
 export interface ServiceHealth {
   name: string;
   id: "auth" | "accounts" | "payments" | "loans" | "notifications" | "audit";

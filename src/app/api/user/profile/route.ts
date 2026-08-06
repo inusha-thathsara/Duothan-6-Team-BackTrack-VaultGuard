@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext, requireAuth } from "@/lib/middleware/with-auth";
+import { signSessionToken } from "@/lib/auth/jwt";
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword, verifyPassword } from "@/lib/services/auth/password";
 import { z } from "zod";
@@ -116,7 +117,17 @@ export async function PATCH(request: NextRequest) {
       data: updateData,
     });
 
-    return NextResponse.json({
+    const userPayload = {
+      userId: updated.id,
+      email: updated.email,
+      fullName: updated.fullName,
+      nationalId: updated.nationalId || "",
+      role: updated.role as "CUSTOMER" | "SUPPORT_OPERATOR",
+    };
+
+    const token = await signSessionToken(userPayload);
+
+    const response = NextResponse.json({
       success: true,
       message: "Profile updated successfully",
       data: {
@@ -128,6 +139,16 @@ export async function PATCH(request: NextRequest) {
         mfaEnabled: updated.mfaEnabled,
       },
     });
+
+    response.cookies.set("vaultguard_session", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 8,
+      path: "/",
+    });
+
+    return response;
   } catch (error: unknown) {
     if (typeof error === "object" && error !== null && "name" in error && (error as { name: string }).name === "AuthError") {
       const authErr = error as unknown as { message: string; statusCode: number };

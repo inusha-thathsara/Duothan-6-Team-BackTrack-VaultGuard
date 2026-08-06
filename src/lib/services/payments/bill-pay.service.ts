@@ -25,7 +25,8 @@ export type BillPayResult = {
 export async function executeBillPayment(
   input: BillPayInput,
   requestId: string,
-  userId: string
+  userId: string,
+  mfaVerified?: boolean
 ): Promise<BillPayResult> {
   // Idempotency check (FR-13)
   const { isDuplicate, existingTransaction } = await checkIdempotency(requestId);
@@ -57,6 +58,7 @@ export async function executeBillPayment(
     fromAccountId: input.fromAccountId,
     amount: input.amount,
     userId,
+    mfaVerified,
   });
 
   if (!riskResult.approved) {

@@ -23,7 +23,9 @@ import {
   CheckCircle2,
   RefreshCw,
   ChevronRight,
+  Download,
 } from "lucide-react";
+import { generatePdfReceipt } from "@/lib/utils/pdf-generator";
 
 /** Return an icon and accent colour based on keywords in the biller name */
 function getBillerMeta(name: string): {
@@ -63,6 +65,24 @@ export default function BillPayPage() {
 
   const billerList = payees.filter((p) => p.type === "BILLER");
 
+  const handleDownloadReceipt = () => {
+    if (!successTx) return;
+    generatePdfReceipt({
+      title: "Bill Payment Official Receipt",
+      transactionType: "BILL_PAYMENT",
+      requestId: successTx.reqId,
+      date: new Date().toLocaleString(),
+      fromAccount: primaryAccount?.accountNumber || accounts[0]?.accountNumber || "Savings Account",
+      billerName: successTx.billerName,
+      billerAccount: billerAccount || "N/A",
+      amount: successTx.amount,
+      totalAmount: successTx.amount,
+      status: "COMPLETED",
+      reference: `Utility Settlement - ${successTx.billerName}`,
+    });
+    addToast({ type: "success", title: "PDF Receipt Generated", message: "Official PDF receipt ready for print/download." });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isPaymentsDegraded) {
@@ -74,18 +94,23 @@ export default function BillPayPage() {
     const activeBiller = payees.find((p) => p.id === selectedBiller);
     const reqId = `REQ-BILL-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    const executeBillPay = async () => {
+    const executeBillPay = async (mfaPassed = false) => {
       setIsSubmitting(true);
       try {
         const sourceAccountId = primaryAccount?.id || accounts[0]?.id || "";
         const res = await fetch("/api/payments/bill-pay", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-request-id": reqId },
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-id": reqId,
+            ...(mfaPassed ? { "x-mfa-verified": "true" } : {}),
+          },
           body: JSON.stringify({
             fromAccountId: sourceAccountId,
             billerId: selectedBiller,
             amount: numAmount,
             description: `${activeBiller?.name || "Biller"} Bill Payment`,
+            ...(mfaPassed ? { mfaVerified: true } : {}),
           }),
         });
 
@@ -319,9 +344,14 @@ export default function BillPayPage() {
                   </div>
                 ))}
               </div>
-              <Button onClick={() => { setSuccessTx(null); setAmount(""); }}>
-                Pay Another Bill
-              </Button>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Button variant="secondary" onClick={handleDownloadReceipt} className="gap-2">
+                  <Download className="w-4 h-4 text-sky-400" /> Download PDF Receipt
+                </Button>
+                <Button onClick={() => { setSuccessTx(null); setAmount(""); }}>
+                  Pay Another Bill
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

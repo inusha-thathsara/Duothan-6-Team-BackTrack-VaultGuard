@@ -15,7 +15,6 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-  const [resetToken, setResetToken] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,9 +33,6 @@ export default function ForgotPasswordPage() {
 
       if (res.ok && data.success) {
         setResetSent(true);
-        if (data.resetToken) {
-          setResetToken(data.resetToken);
-        }
       } else {
         setErrorMsg(data.error || "Failed to send reset link");
       }
@@ -71,26 +67,11 @@ export default function ForgotPasswordPage() {
                   <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold">Reset Link Dispatched</p>
-                    <p className="mt-0.5 text-emerald-600/90 dark:text-emerald-400/90">
-                      We sent recovery instructions to <strong>{email}</strong>. Please check your inbox.
+                    <p className="mt-0.5 text-emerald-600/90 dark:text-emerald-400/90 leading-relaxed">
+                      We sent recovery instructions and a single-use token to <strong>{email}</strong> via the Resend Email Gateway. Please check your inbox.
                     </p>
                   </div>
                 </div>
-
-                {resetToken && (
-                  <div className="p-3.5 rounded-lg bg-muted/60 border border-border space-y-2 text-xs">
-                    <p className="font-medium text-foreground">Demo Testing Shortcut Token:</p>
-                    <div className="p-2 bg-background rounded font-mono text-[11px] break-all border border-border select-all">
-                      {resetToken}
-                    </div>
-                    <Link
-                      href={`/reset-password?token=${resetToken}`}
-                      className="inline-flex items-center gap-1 text-primary hover:underline font-medium text-xs mt-1"
-                    >
-                      Proceed directly to Reset Password page <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                )}
 
                 <Link href="/login" className="inline-flex items-center justify-center w-full px-4 py-2 text-xs font-semibold rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors">
                   <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to Sign In

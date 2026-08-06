@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/services/auth/password";
 import { signSessionToken } from "@/lib/auth/jwt";
+import { emailService } from "@/lib/services/email/email.service";
 import { z } from "zod";
+import { isValidNic } from "@/lib/validation/id-format";
 
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   fullName: z.string().min(2, "Full name is required"),
-  nationalId: z.string().optional(),
+  nationalId: z.string().refine(
+    (val: string) => !val || isValidNic(val),
+    "Invalid National ID format. Must be 9 digits + V/X (e.g. 941820491V) or 12 digits (e.g. 200012345678)"
+  ).optional(),
   phoneNumber: z.string().optional(),
 });
 
@@ -75,6 +80,17 @@ export async function POST(request: NextRequest) {
       role: user.role as "CUSTOMER" | "SUPPORT_OPERATOR",
     };
 
+    // Dispatch welcome email with account details via Resend Email Gateway (non-blocking)
+    try {
+      await emailService.sendWelcomeAccountEmail({
+        email: user.email,
+        fullName: user.fullName,
+        accountNumber: accNum,
+      });
+    } catch (emailErr) {
+      console.warn("[Register] Non-fatal email dispatch warning:", emailErr);
+    }
+
     const token = await signSessionToken(userPayload);
 
     const response = NextResponse.json({
@@ -101,6 +117,8 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 8,
       path: "/",
     });
+
+    return response;
 
   } catch (error: unknown) {
     if (error instanceof z.ZodError) {

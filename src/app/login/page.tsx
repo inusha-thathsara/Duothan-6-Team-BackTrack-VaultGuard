@@ -35,7 +35,7 @@ export default function LoginPage() {
         if (result.requiresMfa) {
           router.push("/mfa");
         } else {
-          router.push("/dashboard");
+          window.location.href = "/dashboard";
         }
       } else {
         setErrorMsg("Invalid credentials. Please verify your email and password.");

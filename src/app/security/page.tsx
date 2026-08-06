@@ -92,15 +92,24 @@ export default function SecurityPage() {
 
       if (res.ok && data.success) {
         addToast({ type: "success", title: "Profile Updated", message: "User profile details successfully saved." });
-        if (setUser && user) {
-          setUser({ ...user, fullName, email });
+        if (data.data) {
+          setFullNameInput(data.data.fullName || "");
+          setEmailInput(data.data.email || "");
+          setPhone(data.data.phoneNumber || "");
+          if (setUser && user) {
+            setUser({
+              ...user,
+              fullName: data.data.fullName,
+              email: data.data.email,
+            });
+          }
         }
       } else {
         addToast({ type: "error", title: "Update Failed", message: data.error || "Failed to update profile." });
       }
     } catch {
       setIsUpdatingProfile(false);
-      addToast({ type: "success", title: "Profile Saved", message: "Updated profile details." });
+      addToast({ type: "error", title: "Update Failed", message: "Network error updating profile details." });
     }
   };
 
