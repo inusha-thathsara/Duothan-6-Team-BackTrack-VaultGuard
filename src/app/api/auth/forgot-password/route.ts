@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { emailService } from "@/lib/services/email/email.service";
 import crypto from "crypto";
 import { z } from "zod";
 
@@ -38,10 +39,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Dispatch secure email via Resend Email Gateway
+    await emailService.sendPasswordResetEmail({
+      email: emailLower,
+      token,
+      baseUrl: request.nextUrl.origin,
+    });
+
     return NextResponse.json({
       success: true,
-      message: "If an account with that email exists, a password reset link has been dispatched.",
-      resetToken: token, // Returned for dev testing & UI ease
+      message: "If an account with that email exists, a password reset link has been dispatched to your email address.",
       expiresInMinutes: 30,
     });
   } catch (error: unknown) {

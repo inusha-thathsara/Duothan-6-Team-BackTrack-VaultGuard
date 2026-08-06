@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/services/auth/password";
 import { signSessionToken } from "@/lib/auth/jwt";
+import { emailService } from "@/lib/services/email/email.service";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -74,6 +75,13 @@ export async function POST(request: NextRequest) {
       nationalId: user.nationalId || "",
       role: user.role as "CUSTOMER" | "SUPPORT_OPERATOR",
     };
+
+    // Dispatch welcome email with account details via Resend Email Gateway
+    await emailService.sendWelcomeAccountEmail({
+      email: user.email,
+      fullName: user.fullName,
+      accountNumber: accNum,
+    });
 
     const token = await signSessionToken(userPayload);
 
