@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { nicSchema, totpCodeSchema } from "./id-format";
 
 export const registerSchema = z.object({
-  nationalId: z.string().min(10, "National ID is required"),
+  nationalId: nicSchema,
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   password: z
@@ -20,7 +21,7 @@ export const loginSchema = z.object({
 
 export const mfaVerifySchema = z.object({
   mfaToken: z.string().min(1, "MFA token required"),
-  code: z.string().length(6, "Code must be 6 digits"),
+  code: totpCodeSchema,
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

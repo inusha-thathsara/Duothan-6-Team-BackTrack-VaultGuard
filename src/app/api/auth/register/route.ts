@@ -4,12 +4,16 @@ import { hashPassword } from "@/lib/services/auth/password";
 import { signSessionToken } from "@/lib/auth/jwt";
 import { emailService } from "@/lib/services/email/email.service";
 import { z } from "zod";
+import { isValidNic } from "@/lib/validation/id-format";
 
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   fullName: z.string().min(2, "Full name is required"),
-  nationalId: z.string().optional(),
+  nationalId: z.string().refine(
+    (val: string) => !val || isValidNic(val),
+    "Invalid National ID format. Must be 9 digits + V/X (e.g. 941820491V) or 12 digits (e.g. 200012345678)"
+  ).optional(),
   phoneNumber: z.string().optional(),
 });
 
