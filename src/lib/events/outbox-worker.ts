@@ -50,6 +50,13 @@ async function processOutboxBatch(): Promise<void> {
         // Publish to EventBus (Pub/Sub analogue)
         eventBus.publish(eventPayload);
 
+        // Phase 3 GCP Pub/Sub integration
+        if (process.env.USE_PUBSUB === "true") {
+          const { publishToPubSub } = await import("./pubsub-adapter");
+          const topicName = process.env.PUBSUB_TOPIC || "vaultguard-events";
+          await publishToPubSub(topicName, eventPayload);
+        }
+
         // Mark as processed
         await prisma.outboxEvent.update({
           where: { id: event.id },
