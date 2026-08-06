@@ -58,8 +58,8 @@ export async function POST(request: NextRequest) {
           userId: newUser.id,
           accountNumber: accNum,
           type: "SAVINGS",
-          balance: 25000.0,
-          currency: "USD",
+          balance: 0.0,
+          currency: "LKR",
           status: "ACTIVE",
         },
       });
