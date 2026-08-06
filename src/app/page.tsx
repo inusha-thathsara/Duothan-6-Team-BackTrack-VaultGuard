@@ -54,7 +54,7 @@ export default function LandingPage() {
                 </Link>
 
                 <Link
-                  href="/enroll"
+                  href="/recovery"
                   className="px-5 py-2.5 rounded-lg bg-muted/50 hover:bg-slate-800 border border-border text-slate-200 font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-2"
                 >
                   <Key className="w-3.5 h-3.5 text-muted-foreground" />
