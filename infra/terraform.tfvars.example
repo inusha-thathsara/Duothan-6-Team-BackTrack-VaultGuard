@@ -1,0 +1,6 @@
+project_id      = "vaultguard-duothan"
+region          = "asia-south1"
+environment     = "production"
+db_password     = "VaultGuard2026SecurePass!"
+jwt_secret      = "vaultguard-phase3-hsm-backed-jwt-secret-2026"
+internal_secret = "vaultguard-internal-m2m-token-2026"
