@@ -168,9 +168,15 @@ export default function EnrollPage() {
             {/* Step 1 */}
             {step === 1 && (
               <form onSubmit={handleVerifyIdentity} className="space-y-4">
-                <p className="text-xs text-muted-foreground p-3 rounded-lg bg-muted border border-border">
-                  Enter your National Identity Card (NIC) number and full legal name to verify identity.
-                </p>
+                <div className="flex items-start gap-3 p-3.5 rounded-lg bg-primary/5 border border-primary/20 text-xs">
+                  <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-semibold text-foreground">Identity Verification</p>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Provide your registered National Identity Card (NIC) and full legal name to verify your customer record.
+                    </p>
+                  </div>
+                </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs uppercase tracking-wider">Email Address</Label>
                   <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="alex.perera@vaultguard.bank" required />
@@ -192,9 +198,9 @@ export default function EnrollPage() {
             {/* Step 2 */}
             {step === 2 && (
               <form onSubmit={handleRegisterAndSetupMfa} className="space-y-4">
-                <div className="p-3 rounded-lg bg-muted border border-border text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-foreground" />
-                  <span className="text-muted-foreground">Identity Matched: <strong className="text-foreground">{fullName}</strong> ({email})</span>
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-center gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                  <span className="text-foreground/90 font-medium">Identity Matched: <strong>{fullName}</strong> ({email})</span>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs uppercase tracking-wider">Account Password</Label>
