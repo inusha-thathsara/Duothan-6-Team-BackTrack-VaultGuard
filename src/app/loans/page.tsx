@@ -23,22 +23,12 @@ export default function LoansPage() {
     useVaultGuard();
 
   const [isRepayModalOpen, setIsRepayModalOpen] = useState(false);
-  const [repayAmount, setRepayAmount] = useState("5000");
-  const [fromAccountId, setFromAccountId] = useState(primaryAccount?.id || accounts[0]?.id || "");
+  const [repayAmountInput, setRepayAmountInput] = useState("");
+  const [fromAccountIdInput, setFromAccountIdInput] = useState("");
 
   const activeLoan = loans[0];
-
-  React.useEffect(() => {
-    if (activeLoan?.nextPaymentAmount) {
-      setRepayAmount(String(activeLoan.nextPaymentAmount));
-    }
-  }, [activeLoan?.nextPaymentAmount]);
-
-  React.useEffect(() => {
-    if (accounts.length > 0 && !fromAccountId) {
-      setFromAccountId(primaryAccount?.id || accounts[0]?.id || "");
-    }
-  }, [accounts, primaryAccount, fromAccountId]);
+  const fromAccountId = fromAccountIdInput || primaryAccount?.id || accounts[0]?.id || "";
+  const repayAmount = repayAmountInput || (activeLoan?.nextPaymentAmount ? String(activeLoan.nextPaymentAmount) : "5000");
 
   const handleExecuteRepay = async (e: React.FormEvent) => {
     e.preventDefault();
